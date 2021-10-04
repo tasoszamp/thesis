@@ -2,6 +2,23 @@
 
 ### Datasets
 * https://www.sciencedirect.com/science/article/pii/S1389128621001201
+  
+  #### Summary: 
+  Hardware: \
+  3 different cameras (FLIR, IR), different resolutions and FOVs 
+  
+  Data: \
+  4 types of videos converted to frames (normal spectrum, fusion, white-hot, green-hot). \
+  Videos of fire and no-fire. \
+  2003 frames for Ground Truth Masks. 
+  
+  Method: \
+  Xception model for binary classification. Code on GitHub, works with Tensorflow 2.3.0 and Keras 2.4.0 \
+  U-Net for semantic segmentation \
+  !!Note!!: only the visible spectrum videos where used for both.
+  
+  
+  #### Citing Papers:
   * https://www.sciencedirect.com/science/article/pii/S0165168421003467
   * https://ieeexplore.ieee.org/document/9425170
 * https://www.researchgate.net/publication/318284024_Computer_vision_for_wildfire_research_An_evolving_image_dataset_for_processing_and_analysis
