@@ -1,6 +1,6 @@
 ## Useful material on wildfire detection
 
-### Databases
+### Datasets
 * https://www.sciencedirect.com/science/article/pii/S1389128621001201
   * https://www.sciencedirect.com/science/article/pii/S0165168421003467
   * https://ieeexplore.ieee.org/document/9425170
