@@ -37,6 +37,7 @@
   
   #### Citing Papers:
   * https://www.researchgate.net/publication/340150420_Information-Guided_Flame_Detection_based_on_Faster_R-CNN
+    Dataset only used on testing. R-CNN improved by color-guided anchoring. For false Positives a parallel GIN was introduced
   * https://www.researchgate.net/publication/354880874_Squeezed_fire_binary_segmentation_model_using_convolutional_neural_network_for_outdoor_images_on_embedded_device
   * https://www.researchgate.net/publication/348438779_Convolutional_neural_network_for_smoke_and_fire_semantic_segmentation
   * https://www.researchgate.net/publication/344457693_Early_Fire_Detection_Based_on_Aerial_360-Degree_Sensors_Deep_Convolution_Neural_Networks_and_Exploitation_of_Fire_Dynamic_Textures
