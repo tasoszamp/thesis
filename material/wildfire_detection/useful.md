@@ -23,18 +23,19 @@
 * https://www.researchgate.net/publication/318284024_Computer_vision_for_wildfire_research_An_evolving_image_dataset_for_processing_and_analysis
 
   #### Summary:
-  Hardware: \
+  Hardware: 
   * Different cameras/parameters
   * Camera with simultaneous capture on visible spectre and near infrared
 
-  Data: \
+  Data: 
   * 500 visible spectre images :: different parts, formats, cameras, parameters. Ground truth -> manual segmentation of the the fire
   * 100 multi-modal images and 5 multi-modal sequences of fire in propagation. Focal length 6mm, 1 fps, 1024 x 768 pixels.
   Multiple descriptors
   
   Method: \
   Non used
-
+  
+  #### Citing Papers:
   * https://www.researchgate.net/publication/340150420_Information-Guided_Flame_Detection_based_on_Faster_R-CNN
   * https://www.researchgate.net/publication/354880874_Squeezed_fire_binary_segmentation_model_using_convolutional_neural_network_for_outdoor_images_on_embedded_device
   * https://www.researchgate.net/publication/348438779_Convolutional_neural_network_for_smoke_and_fire_semantic_segmentation
