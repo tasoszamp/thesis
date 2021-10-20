@@ -37,11 +37,10 @@
   
   #### Citing Papers:
   * https://www.researchgate.net/publication/340150420_Information-Guided_Flame_Detection_based_on_Faster_R-CNN \
-    Dataset only used on testing. R-CNN improved by color-guided anchoring. For false Positives a parallel GIN was introduced
-  * https://www.researchgate.net/publication/354880874_Squeezed_fire_binary_segmentation_model_using_convolutional_neural_network_for_outdoor_images_on_embedded_device
-  * https://www.researchgate.net/publication/348438779_Convolutional_neural_network_for_smoke_and_fire_semantic_segmentation
+    Dataset only used on testing. R-CNN improved by color-guided anchoring. For false Positives a parallel GIN was introduced    
   * https://www.researchgate.net/publication/344457693_Early_Fire_Detection_Based_on_Aerial_360-Degree_Sensors_Deep_Convolution_Neural_Networks_and_Exploitation_of_Fire_Dynamic_Textures
-  * https://www.researchgate.net/publication/344727435_Fire_segmentation_using_a_DeepLabv3_architecture
+  * https://www.researchgate.net/publication/344727435_Fire_segmentation_using_a_DeepLabv3_architecture \
+    Custom method
   * https://www.researchgate.net/publication/348317293_Semantic_Fire_Segmentation_Model_Based_on_Convolutional_Neural_Network_for_Outdoor_Image
   * https://www.researchgate.net/publication/332995092_Application_of_KNN_Algorithm_Based_on_Particle_Swarm_Optimization_in_Fire_Image_Segmentation
   * https://www.researchgate.net/publication/353723135_Color-based_Superpixel_Semantic_Segmentation_for_Fire_Data_Annotation
