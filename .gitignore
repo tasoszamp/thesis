@@ -1,0 +1,8 @@
+# Compiled LateX #
+##################
+
+*.dvi
+*.aux
+quickSoA.*
+!quickSoA.tex
+!quickSoA.pdf
