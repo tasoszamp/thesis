@@ -56,36 +56,58 @@ title = {Microservices: a definition of this new architectural term},
 year = {2014}
 }
 
-@article{electronics9010040,
-AUTHOR = {Jun, Su and Przystupa, Krzysztof and Beshley, Mykola and Kochan, Orest and Beshley, Halyna and Klymash, Mykhailo and Wang, Jinfei and Pieniak, Daniel},
-TITLE = {A Cost-Efficient Software Based Router and Traffic Generator for Simulation and Testing of IP Network},
-JOURNAL = {Electronics},
-VOLUME = {9},
-YEAR = {2020},
-NUMBER = {1},
-ARTICLE-NUMBER = {40},
-URL = {https://www.mdpi.com/2079-9292/9/1/40},
-ISSN = {2079-9292},
-ABSTRACT = {The development was carried out using the Qt5.2 integrated development environment, which uses the programming language C++. The main advantage of this environment is that the code written in it can be compiled to different platforms (for example, Windows, Linux, Mac OS). A software router based on a modular architecture has been developed. It uses the socket technology, which allows forming a program-oriented packet network with any topology, including full-coupled topology. A network traffic generator to test the developed software router has been designed. We proposed a scheme to measure the packet processing time of a router using a specialized packet-capture network interface cards (NIC 1 and NIC 2) and a novel traffic generator installed on PC. Based on an experimental test bed we confirmed that our software router provides a cost-efficient alternative to the expensive, special hardware router CISCO 2801.},
-DOI = {10.3390/electronics9010040}
-}
-
-@article{10.1145/3488375,
-author = {Adeleke, Oluwamayowa Ade and Bastin, Nicholas and Gurkan, Deniz},
-title = {Network Traffic Generation: A Survey and Methodology},
+@inproceedings{10.1145/3538393.3544937,
+author = {Dayalan, Udhaya Kumar and Fezeu, Rostand A. K. and Salo, Timothy J. and Zhang, Zhi-Li},
+title = {Kaala: Scalable, End-to-End, IoT System Simulator},
 year = {2022},
-issue_date = {February 2023},
+isbn = {9781450393928},
 publisher = {Association for Computing Machinery},
 address = {New York, NY, USA},
-volume = {55},
-number = {2},
-issn = {0360-0300},
-url = {https://doi.org/10.1145/3488375},
-doi = {10.1145/3488375},
-abstract = {Network traffic workloads are widely utilized in applied research to verify correctness and to measure the impact of novel algorithms, protocols, and network functions. We provide a comprehensive survey of traffic generators referenced by researchers over the last 13 years, providing in-depth classification of the functional behaviors of the most frequently cited generators. These classifications are then used as a critical component of a methodology presented to aid in the selection of generators derived from the workload requirements of future research.},
-journal = {ACM Comput. Surv.},
-month = {jan},
-articleno = {28},
-numpages = {23},
-keywords = {analysis, workload, traffic, generator, survey, experiment, packet, Network}
+url = {https://doi.org/10.1145/3538393.3544937},
+doi = {10.1145/3538393.3544937},
+abstract = {We introduce Kaala, a scalable, hybrid, end-to-end IoT system simulator that can integrate with diverse, real-world IoT cloud services. Many IoT simulators run in isolation and do not interface with real-world IoT cloud systems or servers. This isolation makes it difficult for experiments to fully replicate the diversity that exists in end-to-end, real-world systems. Kaala is intended to bridge the gap between IoT simulation experiments and the real world. The simulator can interact with cloud IoT services, such as those offered by Amazon, Microsoft and Google. Kaala leverages vendor-provided software development kits (SDKs) to implement the vendor-specific protocols that are necessary permit simulated IoT devices and gateways to seamlessly communicate with real-world cloud IoT systems. Kaala has the ability to simulate a large number of diverse IoT devices, as well as to simulate events that may simultaneously affect several sensors. Evaluation results show that Kaala is able to, with minimal overhead, seamlessly connect simulated IoT devices to real-world cloud IoT systems.},
+booktitle = {Proceedings of the ACM SIGCOMM Workshop on Networked Sensing Systems for a Sustainable Society},
+pages = {33–38},
+numpages = {6},
+keywords = {5G, IoT cloud, IoT gateway SDK, IoT devices, IoT simulator, network},
+location = {Amsterdam, Netherlands},
+series = {NET4us '22}
 }
+
+@article{s10723-018-9468-9,
+AUTHOR = {A. Kertesz, T. Pflanzner, T. Gyimothy},
+TITLE = {A Mobile IoT Device Simulator for IoT-Fog-Cloud Systems},
+JOURNAL = {Journal of Grid Computing},
+VOLUME = {17},
+YEAR = {2019},
+pages = {529–551},
+URL = {https://doi.org/10.1007/s10723-018-9468-9},
+ISSN = {1572-9184},
+ABSTRACT = {The Internet of Things (IoT) is the latest trend of the current ICT evolution, represented by a huge amount of powerful smart devices that have started to appear on the Internet. By responding to this new trend, many cloud providers have started to offer services for IoT management. Recent advances have already shown that cloud computing can be used to serve IoT needs by performing data generation, processing and visualization tasks. In this currently forming ecosystem, IoT system developers need to purchase, connect and configure these devices, and they also have to choose the right infrastructure provider offering the combination of protocols and data structures fitting their applications. In this paper, we propose a complex, semi-simulation environment that aims to provide a solution for these IoT challenges. Our main contribution is the the design of an Android-based, mobile IoT device simulator called MobIoTSim. We also propose a customizable cloud gateway to manage these devices by receiving, processing and visualizing sensor data coming from MobIoTSim. To be as close as possible to real world application, we created an IoT trace archive service called SUMMON, which can be used to gather real-world sensor data, which can be used by MobIoTSim. Finally, we demonstrate how to create IoT applications utilizing numerous IoT devices with this environment, and evaluate the device management scalability and responsiveness of its components.},
+DOI = {10.1007/s10723-018-9468-9}
+}
+
+@article{ZENG201793,
+title = {IOTSim: A simulator for analysing IoT applications},
+journal = {Journal of Systems Architecture},
+volume = {72},
+pages = {93-107},
+year = {2017},
+note = {Design Automation for Embedded Ubiquitous Computing Systems},
+issn = {1383-7621},
+doi = {https://doi.org/10.1016/j.sysarc.2016.06.008},
+url = {https://www.sciencedirect.com/science/article/pii/S1383762116300662},
+author = {Xuezhi Zeng and Saurabh Kumar Garg and Peter Strazdins and Prem Prakash Jayaraman and Dimitrios Georgakopoulos and Rajiv Ranjan},
+keywords = {Internet of things (iot), Big data, Mapreduce, Cloud computing, Programming model, Modelling and simulation},
+abstract = {A disruptive technology that is influencing not only computing paradigm but every other business is the rise of big data. Internet of Things (IoT) applications are considered to be a major source of big data. Such IoT applications are in general supported through clouds where data is stored and processed by big data processing systems. In order to improve the efficiency of cloud infrastructure so that they can efficiently support IoT big data applications, it is important to understand how these applications and the corresponding big data processing systems will perform in cloud computing environments. However, given the scalability and complex requirements of big data processing systems, an empirical evaluation on actual cloud infrastructure can hinder the development of timely and cost effective IoT solutions. Therefore, a simulator supporting IoT applications in cloud environment is highly demanded, but such work is still in its infancy. To fill this gap, we have designed and implemented IOTSim which supports and enables simulation of IoT big data processing using MapReduce model in cloud computing environment. A real case study validates the efficacy of the simulator.}
+}
+
+@INPROCEEDINGS{7004228,
+author={Anderson, Jason W. and Kennedy, K. E. and Ngo, Linh B. and Luckow, Andre and Apon, Amy W.},
+booktitle={2014 IEEE International Conference on Big Data (Big Data)}, 
+title={Synthetic data generation for the internet of things}, 
+year={2014},
+volume={},
+number={},
+pages={171-176},
+doi={10.1109/BigData.2014.7004228}}
