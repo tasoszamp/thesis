@@ -1,43 +1,70 @@
-# import os
-# from dotenv import load_dotenv
+import socket
+import time
 from paho.mqtt import client as mqtt_client
 
-# load_dotenv()
-# port = 8883
 port = 1883
-topic = "python/mqtt"
-client_id = f'subscribe-sensor-test'
-broker = '127.0.0.1'
-# broker = os.environ.get("BROKER")
-# username = os.environ.get("USERNAME")
-# password = os.environ.get("PASSWORD")
+topic = "collect-data"
+hostname = socket.gethostname()
+client_id = f'subscribe-{hostname}'
+broker = 'localhost'
+#broker = 'host.docker.internal'
 
 def connect_mqtt() -> mqtt_client:
+
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
             print("Connected to MQTT Broker!")
+            client.subscribe(topic)
         else:
             print("Failed to connect, return code %d\n", rc)
+    
+    def on_disconnect(client, userdata, rc):
 
-    client = mqtt_client.Client(client_id)
-    ## client.tls_set(ca_certs='./emqxsl-ca.crt')
-    # client.username_pw_set(username, password)
-    client.on_connect = on_connect
-    client.connect(broker, port)
-    return client
+        FIRST_RECONNECT_DELAY = 1
+        RECONNECT_RATE = 2
+        MAX_RECONNECT_COUNT = 12
+        MAX_RECONNECT_DELAY = 60
 
+        print("Disconnected with result code: %s", rc)
+        reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
+        while reconnect_count < MAX_RECONNECT_COUNT:
+            print(f"Reconnecting in {reconnect_delay} seconds...")
+            time.sleep(reconnect_delay)
 
-def subscribe(client: mqtt_client):
+            try:
+                client.reconnect()
+                print("Reconnected successfully!")
+                return
+            except Exception as err:
+                print(f"{err}. Reconnect failed. Retrying...")
+
+            reconnect_delay *= RECONNECT_RATE
+            reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
+            reconnect_count += 1
+        print(f"Reconnect failed after {reconnect_count} attempts. Exiting...")
+
     def on_message(client, userdata, msg):
         print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
 
-    client.subscribe(topic)
+
+    client = mqtt_client.Client(client_id)
+    client.on_connect = on_connect
+    client.on_disconnect = on_disconnect
     client.on_message = on_message
+    client.connect(broker, port)
+    return client
+
+# def subscribe(client: mqtt_client):
+#     def on_message(client, userdata, msg):
+#         print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+
+#     client.subscribe(topic)
+#     client.on_message = on_message
 
 
 def run():
     client = connect_mqtt()
-    subscribe(client)
+    #subscribe(client)
     client.loop_forever()
 
 
