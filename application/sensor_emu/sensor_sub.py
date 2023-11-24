@@ -1,14 +1,16 @@
-import os
-from dotenv import load_dotenv
+# import os
+# from dotenv import load_dotenv
 from paho.mqtt import client as mqtt_client
 
-load_dotenv()
-port = 8883
+# load_dotenv()
+# port = 8883
+port = 1883
 topic = "python/mqtt"
 client_id = f'subscribe-sensor-test'
-broker = os.environ.get("BROKER")
-username = os.environ.get("USERNAME")
-password = os.environ.get("PASSWORD")
+broker = '127.0.0.1'
+# broker = os.environ.get("BROKER")
+# username = os.environ.get("USERNAME")
+# password = os.environ.get("PASSWORD")
 
 def connect_mqtt() -> mqtt_client:
     def on_connect(client, userdata, flags, rc):
@@ -18,8 +20,8 @@ def connect_mqtt() -> mqtt_client:
             print("Failed to connect, return code %d\n", rc)
 
     client = mqtt_client.Client(client_id)
-    client.tls_set(ca_certs='./emqxsl-ca.crt')
-    client.username_pw_set(username, password)
+    ## client.tls_set(ca_certs='./emqxsl-ca.crt')
+    # client.username_pw_set(username, password)
     client.on_connect = on_connect
     client.connect(broker, port)
     return client
