@@ -1,0 +1,3 @@
+rm -r build/ dist/ *.spec
+pyinstaller --onefile <.py>
+docker run --rm -v "${PWD}:/src" anastzampetis/pyinstaller-alpine --noconfirm --onefile --log-level DEBUG --clean <>.py

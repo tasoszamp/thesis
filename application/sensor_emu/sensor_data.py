@@ -1,14 +1,14 @@
 import json
 import random
 import socket
-from paho.mqtt import client as mqtt_client
+import paho.mqtt.client as mqtt_client
 
 port = 1883
 hostname = socket.gethostname()
-topic = f"sensor-data/{hostname}"
-client_id = f'publish-{hostname}'
-broker = 'localhost'
-#broker = 'host.docker.internal'
+topic = "sensor-data/{}".format(hostname)
+client_id = 'publish-{}'.format(hostname)
+#broker = 'localhost'
+broker = 'host.docker.internal'
 
 def connect_mqtt():
 
@@ -32,13 +32,13 @@ def data_gen():
         return randata
 
 def publish(client, data):
-    msg = f"{data}"
+    msg = str(data)
     result = client.publish(topic, msg)
     status = result[0]
     if status == 0:
-        print(f"Sent `{msg}` to topic `{topic}`")
+        print("Sent `{}` to topic `{}`".format(msg, topic))
     else:
-        print(f"Failed to send message to topic {topic}")        
+        print("Failed to send message to topic {}".format(topic))        
 
 if __name__ == '__main__':
     client = connect_mqtt()

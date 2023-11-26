@@ -1,15 +1,16 @@
 import socket
 import time
-from paho.mqtt import client as mqtt_client
+import subprocess
+import paho.mqtt.client as mqtt_client
 
 port = 1883
 topic = "collect-data"
 hostname = socket.gethostname()
-client_id = f'subscribe-{hostname}'
-broker = 'localhost'
-#broker = 'host.docker.internal'
+client_id = 'subscribe-{}'.format(hostname)
+#broker = 'localhost'
+broker = 'host.docker.internal'
 
-def connect_mqtt() -> mqtt_client:
+def connect_mqtt():
 
     def on_connect(client, userdata, flags, rc):
         if rc == 0:
@@ -28,7 +29,7 @@ def connect_mqtt() -> mqtt_client:
         print("Disconnected with result code: %s", rc)
         reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
         while reconnect_count < MAX_RECONNECT_COUNT:
-            print(f"Reconnecting in {reconnect_delay} seconds...")
+            print("Reconnecting in {} seconds...".format(reconnect_delay))
             time.sleep(reconnect_delay)
 
             try:
@@ -36,15 +37,16 @@ def connect_mqtt() -> mqtt_client:
                 print("Reconnected successfully!")
                 return
             except Exception as err:
-                print(f"{err}. Reconnect failed. Retrying...")
+                print("{}. Reconnect failed. Retrying...".format(err))
 
             reconnect_delay *= RECONNECT_RATE
             reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
             reconnect_count += 1
-        print(f"Reconnect failed after {reconnect_count} attempts. Exiting...")
+        print("Reconnect failed after {} attempts. Exiting...".format(reconnect_count))
 
     def on_message(client, userdata, msg):
-        print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
+        print("Received `{}` from `{}` topic".format(msg.payload.decode(), msg.topic))
+        subprocess.run(["./sensor_data"])
 
 
     client = mqtt_client.Client(client_id)
@@ -53,14 +55,6 @@ def connect_mqtt() -> mqtt_client:
     client.on_message = on_message
     client.connect(broker, port)
     return client
-
-# def subscribe(client: mqtt_client):
-#     def on_message(client, userdata, msg):
-#         print(f"Received `{msg.payload.decode()}` from `{msg.topic}` topic")
-
-#     client.subscribe(topic)
-#     client.on_message = on_message
-
 
 def run():
     client = connect_mqtt()
