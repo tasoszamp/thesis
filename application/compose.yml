@@ -1,8 +1,33 @@
 services:
   mqtt_broker:
     image: "eclipse-mosquitto"
+    container_name: "thesis-app.mqtt_broker"
     volumes: 
       - ./mqtt_broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
     ports:
       - "1883:1883"
       - "9001:9001"
+  # forced to init every sensor individually since replicas do not have a variabled option and container name is not accessible from inside the container
+  sensor-1:
+    image: "anastzampetis/sensor-emul"
+    container_name: "thesis-app.sensor-1"
+    hostname: "sensor-1"
+  sensor-2:
+    image: "anastzampetis/sensor-emul"
+    container_name: "thesis-app.sensor-2"
+    hostname: "sensor-2"
+  sensor-3:
+    image: "anastzampetis/sensor-emul"
+    container_name: "thesis-app.sensor-3"
+    hostname: "sensor-3"
+  sensor-4:
+    image: "anastzampetis/sensor-emul"
+    container_name: "thesis-app.sensor-4"
+    hostname: "sensor-4"
+  sensor-5:
+    image: "anastzampetis/sensor-emul"
+    container_name: "thesis-app.sensor-5"
+    hostname: "sensor-5"
+  
+  
+    
