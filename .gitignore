@@ -9,3 +9,4 @@ quickSoA.*
 !quickSoA.pdf
 .env
 __pycache__/
+application/grafana/
