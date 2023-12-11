@@ -1,38 +1,73 @@
 services:
   mqtt_broker:
-    image: "eclipse-mosquitto"
+    image: "eclipse-mosquitto:2.0.18"
     container_name: "thesis-app.mqtt_broker"
     volumes: 
       - ./mqtt_broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
     ports:
       - "1883:1883"
       - "9001:9001"
+    restart: unless-stopped
   exporter:
     image: "anastzampetis/iot-exporter"
     container_name: "thesis-app.exporter"
     ports:
       - "8000:8000"
+    restart: unless-stopped
+  prometheus:
+    image: "prom/prometheus:v2.46.0"
+    container_name: "thesis-app.prometheus"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/prometheus_alerts_rules.yml:/etc/prometheus/prometheus_alerts_rules.yml
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--web.enable-lifecycle"  
+      - "--storage.tsdb.path=/prometheus"  
+      - "--storage.tsdb.retention.time=1y"
+    restart: unless-stopped
+  grafana:
+    image: "grafana/grafana:10.2.2"
+    container_name: "thesis-app.grafana"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=grafana
+      - GF_PATHS_DATA=/var/lib/grafana
+    volumes:
+      - ./grafana:/var/lib/grafana
   # forced to init every sensor individually since replicas do not have a variabled option and container name is not accessible from inside the container
   sensor-1:
     image: "anastzampetis/sensor-emul"
     container_name: "thesis-app.sensor-1"
     hostname: "sensor-1"
+    restart: unless-stopped
   sensor-2:
     image: "anastzampetis/sensor-emul"
     container_name: "thesis-app.sensor-2"
     hostname: "sensor-2"
+    restart: unless-stopped
   sensor-3:
     image: "anastzampetis/sensor-emul"
     container_name: "thesis-app.sensor-3"
     hostname: "sensor-3"
+    restart: unless-stopped
   sensor-4:
     image: "anastzampetis/sensor-emul"
     container_name: "thesis-app.sensor-4"
     hostname: "sensor-4"
+    restart: unless-stopped
   sensor-5:
     image: "anastzampetis/sensor-emul"
     container_name: "thesis-app.sensor-5"
     hostname: "sensor-5"
+    restart: unless-stopped
   
-  
+volumes:
+  prometheus_data:  
     
