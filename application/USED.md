@@ -4,3 +4,4 @@
 * mqtt client lib -> https://github.com/eclipse/paho.mqtt.python
 * mqtt broker -> https://mosquitto.org/
 * dataset -> https://www.kaggle.com/datasets/fedesoriano/air-quality-data-set
+* prometheus_client -> https://prometheus.github.io/client_python/
