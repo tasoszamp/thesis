@@ -1,5 +1,5 @@
 import paho.mqtt.client as mqtt_client
-import subprocess
+import json
 from exporter_var import *
 
 def connect_sub_mqtt():
@@ -38,7 +38,9 @@ def connect_sub_mqtt():
 
     def on_message(client, userdata, msg):
 
-        print("Received `{}` from `{}` topic".format(msg.payload.decode(), msg.topic))
+        print("Received data from `{}` topic".format(msg.topic))
+        promethify_data(msg)
+
 
 
     client = mqtt_client.Client(sub_client_id)
@@ -52,7 +54,7 @@ def sub_client_run():
     sub_client = connect_sub_mqtt()
     sub_client.loop_forever()
 
-def publish(client):
+def request_data(client):
     msg = 'Time to collect data.'
     result = client.publish(pub_topic, msg)
     status = result[0]
@@ -77,5 +79,25 @@ def connect_pub_mqtt():
 def gather_data():
     pub_client = connect_pub_mqtt()
     pub_client.loop_start()
-    publish(pub_client)
+    request_data(pub_client)
     pub_client.loop_stop()
+
+def promethify_data(msg):
+
+    sensor = msg.topic.split('/')[1]
+    jsondata_string = msg.payload.decode().replace("'", '"')
+    jsondata = json.loads(jsondata_string)
+
+    air_quality_co_gt_gauge.labels(sensor).set(float(jsondata["CO(GT)"].replace(',', '.')))
+    air_quality_pt08s1_co_gauge.labels(sensor).set(float(jsondata["PT08.S1(CO)"].replace(',', '.')))
+    air_quality_nmhc_gt_gauge.labels(sensor).set(float(jsondata["NMHC(GT)"].replace(',', '.')))
+    air_quality_c6h6_gt_gauge.labels(sensor).set(float(jsondata["C6H6(GT)"].replace(',', '.')))
+    air_quality_pt08s2_nmhc_gauge.labels(sensor).set(float(jsondata["PT08.S2(NMHC)"].replace(',', '.')))
+    air_quality_nox_gt_gauge.labels(sensor).set(float(jsondata["NOx(GT)"].replace(',', '.')))
+    air_quality_pt08s3_nox_gauge.labels(sensor).set(float(jsondata["PT08.S3(NOx)"].replace(',', '.')))
+    air_quality_no2_gt_gauge.labels(sensor).set(float(jsondata["NO2(GT)"].replace(',', '.')))
+    air_quality_pt08s4_no2_gauge.labels(sensor).set(float(jsondata["PT08.S4(NO2)"].replace(',', '.')))
+    air_quality_pt08s5_o3_gauge.labels(sensor).set(float(jsondata["PT08.S5(O3)"].replace(',', '.')))
+    air_quality_t_gauge.labels(sensor).set(float(jsondata["T"].replace(',', '.')))
+    air_quality_rh_gauge.labels(sensor).set(float(jsondata["RH"].replace(',', '.')))
+    air_quality_ah_gauge.labels(sensor).set(float(jsondata["AH"].replace(',', '.')))
