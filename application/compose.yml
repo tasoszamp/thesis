@@ -7,6 +7,11 @@ services:
     ports:
       - "1883:1883"
       - "9001:9001"
+  exporter:
+    image: "anastzampetis/iot-exporter"
+    container_name: "thesis-app.exporter"
+    ports:
+      - "8000:8000"
   # forced to init every sensor individually since replicas do not have a variabled option and container name is not accessible from inside the container
   sensor-1:
     image: "anastzampetis/sensor-emul"

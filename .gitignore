@@ -8,3 +8,4 @@ quickSoA.*
 !quickSoA.tex
 !quickSoA.pdf
 .env
+__pycache__/
