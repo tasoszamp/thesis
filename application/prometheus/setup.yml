@@ -1,0 +1,90 @@
+- name: Monitoring Setup
+  hosts: localhost
+  connection: local
+  tasks:
+
+  - name: Create Folder /srv/prometheus if not exist
+    file:
+      path: /srv/prometheus
+      mode: 0755
+      state: directory
+
+  - name: Create Folder /srv/grafana if not exist
+    file:
+      path: /srv/{{ item }}
+      mode: 0755
+      state: directory
+    with_items: [grafana, grafana/provitioning, grafana/dashboards]
+
+  - name: Create Folder /srv/alertmanager if not exist
+    file:
+      path: /srv/alertmanager
+      mode: 0755
+      state: directory
+
+  #- name: Fetch prometheus configuration file
+
+  #- name: Fetch prometheus alert configuration file
+
+  #- name: Fetch grafana configuration files
+
+  #- name: Fetch alertmanager configuration file
+
+  - name: Create Prometheus container
+    become: true
+    docker_container:
+      name: prometheus
+      restart_policy: always
+      image: prom/prometheus:v2.46.0
+      volumes:
+        - /srv/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+        - /srv/prometheus/prometheus_alerts_rules.yml:/etc/prometheus/prometheus_alerts_rules.yml
+        - /users/altairbuilds6/prometheus/prometheus_main_data:/prometheus
+          #- prometheus_main_data:/prometheus
+      command: >
+        --config.file=/etc/prometheus/prometheus.yml
+        --storage.tsdb.path=/prometheus
+        --web.console.libraries=/etc/prometheus/console_libraries
+        --web.console.templates=/etc/prometheus/consoles
+        --web.enable-lifecycle
+        --storage.tsdb.retention.time=1y
+      published_ports: "9090:9090"
+
+  - name: Create Grafana container
+    become: true
+    docker_container:
+      name: grafana
+      restart_policy: always
+      image: grafana/grafana:10.0.3
+      volumes:
+        #- grafana-data:/var/lib/grafana
+        - /srv/grafana/provisioning:/etc/grafana/provisioning
+        - /srv/grafana/dashboards:/var/lib/grafana/dashboards
+      env:
+        GF_AUTH_ANONYMOUS_ENABLED: "true"
+        GF_AUTH_ANONYMOUS_ORG_ROLE: "Admin"
+      published_ports: "3000:3000"
+
+  - name: Create Alertmanager container
+    become: true
+    docker_container:
+      name: alertmanager
+      restart_policy: always
+      image: prom/alertmanager:v0.25.0
+      volumes:
+        #- alertmanager-data:/data
+        - /srv/alertmanager:/config
+      command: >
+        --config.file=/config/alertmanager.yml
+        --log.level=debug
+      published_ports: "9093:9093"
+
+  - name: Create Gitlab-exporter container
+    become: true
+    docker_container:
+      name: gitlab-exporter
+      restart_policy: always
+      memory: 400m
+      memory_swap: 400m
+      image: altairengineering.jfrog.io/devops-docker/gitlab-exporter:latest
+      published_ports: "8000:8000"
