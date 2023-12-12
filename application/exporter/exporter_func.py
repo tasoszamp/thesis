@@ -1,5 +1,5 @@
 import paho.mqtt.client as mqtt_client
-import json
+import json, time
 from exporter_var import *
 
 def connect_sub_mqtt():
@@ -82,22 +82,29 @@ def gather_data():
     request_data(pub_client)
     pub_client.loop_stop()
 
+def assign_data(prom_var, data_name, sensor, jsondata):
+
+    value =  float(jsondata[data_name].replace(',', '.'))
+    if  value != -200:
+        prom_var.labels(sensor).set(value)  
+
 def promethify_data(msg):
 
     sensor = msg.topic.split('/')[1]
     jsondata_string = msg.payload.decode().replace("'", '"')
     jsondata = json.loads(jsondata_string)
 
-    air_quality_co_gt_gauge.labels(sensor).set(float(jsondata["CO(GT)"].replace(',', '.')))
-    air_quality_pt08s1_co_gauge.labels(sensor).set(float(jsondata["PT08.S1(CO)"].replace(',', '.')))
-    air_quality_nmhc_gt_gauge.labels(sensor).set(float(jsondata["NMHC(GT)"].replace(',', '.')))
-    air_quality_c6h6_gt_gauge.labels(sensor).set(float(jsondata["C6H6(GT)"].replace(',', '.')))
-    air_quality_pt08s2_nmhc_gauge.labels(sensor).set(float(jsondata["PT08.S2(NMHC)"].replace(',', '.')))
-    air_quality_nox_gt_gauge.labels(sensor).set(float(jsondata["NOx(GT)"].replace(',', '.')))
-    air_quality_pt08s3_nox_gauge.labels(sensor).set(float(jsondata["PT08.S3(NOx)"].replace(',', '.')))
-    air_quality_no2_gt_gauge.labels(sensor).set(float(jsondata["NO2(GT)"].replace(',', '.')))
-    air_quality_pt08s4_no2_gauge.labels(sensor).set(float(jsondata["PT08.S4(NO2)"].replace(',', '.')))
-    air_quality_pt08s5_o3_gauge.labels(sensor).set(float(jsondata["PT08.S5(O3)"].replace(',', '.')))
-    air_quality_t_gauge.labels(sensor).set(float(jsondata["T"].replace(',', '.')))
-    air_quality_rh_gauge.labels(sensor).set(float(jsondata["RH"].replace(',', '.')))
-    air_quality_ah_gauge.labels(sensor).set(float(jsondata["AH"].replace(',', '.')))
+    assign_data(air_quality_co_gt_gauge, "CO(GT)", sensor, jsondata)
+    assign_data(air_quality_pt08s1_co_gauge, "PT08.S1(CO)", sensor, jsondata)
+    assign_data(air_quality_nmhc_gt_gauge, "NMHC(GT)", sensor, jsondata)
+    assign_data(air_quality_c6h6_gt_gauge, "C6H6(GT)", sensor, jsondata)
+    assign_data(air_quality_pt08s2_nmhc_gauge, "PT08.S2(NMHC)", sensor, jsondata)
+    assign_data(air_quality_nox_gt_gauge, "NOx(GT)", sensor, jsondata)
+    assign_data(air_quality_pt08s3_nox_gauge, "PT08.S3(NOx)", sensor, jsondata)
+    assign_data(air_quality_no2_gt_gauge, "NO2(GT)", sensor, jsondata)
+    assign_data(air_quality_pt08s4_no2_gauge, "PT08.S4(NO2)", sensor, jsondata)
+    assign_data(air_quality_pt08s5_o3_gauge, "PT08.S5(O3)", sensor, jsondata)
+    assign_data(air_quality_t_gauge, "T", sensor, jsondata)
+    assign_data(air_quality_rh_gauge, "RH", sensor, jsondata)
+    assign_data(air_quality_ah_gauge, "AH", sensor, jsondata)
+    
