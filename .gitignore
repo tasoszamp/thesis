@@ -10,3 +10,4 @@ quickSoA.*
 .env
 __pycache__/
 application/grafana/
+!application/grafana/model.json
