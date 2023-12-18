@@ -1,6 +1,8 @@
 import json
-import random
+import random, os
 import socket
+import subprocess
+from dotenv import load_dotenv
 import paho.mqtt.client as mqtt_client
 
 port = 1883
@@ -26,8 +28,19 @@ def connect_mqtt():
 def data_gen():
     with open("dataset.json") as datafile:
         json_data = json.load(datafile)
+    
+        load_dotenv()
+        startpoint = int(os.getenv('STARTPOINT'))
+        randomizer = random.randint(startpoint - 2, startpoint + 3)
+        while randomizer not in range(1,len(json_data)):
+            subprocess.run(["./set_startpoint"])
+            load_dotenv()
+            startpoint = int(os.getenv('STARTPOINT'))
+            randomizer = random.randint(startpoint - 10, startpoint + 10)
 
-        randomizer = random.randint(1, len(json_data))
+        with open(".env", "w") as f:
+            f.write("STARTPOINT={}".format(randomizer))
+
         randata = json_data[str(randomizer)]
         return randata
 
