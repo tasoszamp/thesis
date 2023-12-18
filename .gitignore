@@ -4,6 +4,7 @@
 *.dvi
 *.aux
 *.crt
+*.env
 quickSoA.*
 !quickSoA.tex
 !quickSoA.pdf
