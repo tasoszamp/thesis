@@ -5,9 +5,19 @@
 *.aux
 *.crt
 *.env
+*.fls
+*.log
+*.fdb*
+main.*
+!main.tex
+!main.pdf
 quickSoA.*
 !quickSoA.tex
 !quickSoA.pdf
+
+
+# Application #
+###############
 .env
 __pycache__/
 application/grafana/
