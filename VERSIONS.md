@@ -7,3 +7,4 @@
 * v0.4.0 -> prometheus and grafana added
 * v0.4.1 -> grafana dashboard
 * v0.4.2 -> sensor emul updated to tight random
+* v0.4.3 -> updated dashboards
