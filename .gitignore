@@ -14,6 +14,7 @@ main.*
 quickSoA.*
 !quickSoA.tex
 !quickSoA.pdf
+aux/
 
 
 # Application #
