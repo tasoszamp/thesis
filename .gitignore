@@ -23,3 +23,7 @@ aux/
 __pycache__/
 application/grafana/
 !application/grafana/model.json
+
+# Draw.io #
+###########
+*.drawio.bkp
