@@ -15,6 +15,7 @@ quickSoA.*
 !quickSoA.tex
 !quickSoA.pdf
 aux/
+article/_minted-main/
 
 
 # Application #
