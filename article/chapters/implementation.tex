@@ -430,14 +430,406 @@ The controller node serves a number of important functions. Firstly, it's respon
 
 Once these messages are received, using the "prometheus\_client" library all metrics are converted in Prometheus format and exposed to an endpoint. Every metric is assigned to a different Gauge type Prometheus metric and labeled usign the sensor unique id. A gauge is a metric that represents a single numerical value that can arbitrarily go up and down. This part of the controller's functionality is essensially a Prometheus exporter.
 
-Usually Prometheus exporters collect data periodically, but continiously expose last collected metrics on an HTTP endpoint. In this case, thought, to make it easier to change the rate of data collection, by changing the scraping rate of Prometheus, a different design was implemented. The controller, utilizing the "fastapi" library and "gunicorn" exposes an API endpoint. When Prometheus scrapes this endpoint, the data collection process is triggered by the controller, and after a small time delay the controller respondes with the metrics. 
+Usually Prometheus exporters collect data periodically, but continiously expose last collected metrics on an HTTP endpoint. In this case, thought, to make it easier to change the rate of data collection, by changing the scraping rate of Prometheus, a different design was implemented. The controller, utilizing the "fastapi" library and "gunicorn" exposes an API endpoint. When Prometheus scrapes this endpoint, the data collection process is triggered by the controller, and after a small time delay the controller respondes with the metrics. Implementation is split between a main script and two modules.
 
-<add scripts>
-<add output of controller>
-<add captions on the code?>
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{python}
+    import time
+    from fastapi import FastAPI, Response
+    from prometheus_client import generate_latest
+    from exporter_func import *
+
+    app = FastAPI(debug=False)
+
+    # Define an endpoint to serve metrics
+    @app.get("/metrics")
+    def get_metrics_app():
+        start_time = time.time()
+        
+        # Connect to MQTT and start collecting data
+        sub_client = connect_sub_mqtt()
+        sub_client.loop_start()
+        gather_data()
+        time.sleep(1) # Allow time for data collection, in case sensors take time to respond
+        sub_client.loop_stop()
+
+        # Generate metrics data in Prometheus format
+        data = generate_latest()
+
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print("Execution time:",execution_time)
+
+        # Return the metrics data as a plain text HTTP response
+        return Response(content=data, media_type="text/plain")
+
+    # Define a root endpoint with a simple message
+    @app.get("/")
+    async def root():
+        return "Go to /metrics for gitlab metrics"
+
+    # Note for running the application locally
+    # Use the command:
+    # gunicorn -b localhost:8000 exporter:app -k uvicorn.workers.UvicornWorker
+\end{minted}
+
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{python}
+    import paho.mqtt.client as mqtt_client
+    import json, time
+    from exporter_var import *
+
+    # Function to establish a connection to the MQTT broker and subscribe to a topic
+    def connect_sub_mqtt():
+
+        # Callback for successful connection to the MQTT broker
+        def on_connect(client, userdata, flags, rc):
+            if rc == 0:
+                print("Connected to MQTT Broker!")
+                client.subscribe(sub_topic) # Subscribe to the specified topic
+            else:
+                print("Failed to connect, return code %d\n", rc)
+        
+        # Callback for handling disconnection from the MQTT broker
+        def on_disconnect(client, userdata, rc):
+
+            FIRST_RECONNECT_DELAY = 1
+            RECONNECT_RATE = 2
+            MAX_RECONNECT_COUNT = 12
+            MAX_RECONNECT_DELAY = 60
+
+            print("Disconnected with result code: %s", rc)
+            reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
+            while reconnect_count < MAX_RECONNECT_COUNT:
+                print("Reconnecting in {} seconds...".format(reconnect_delay))
+                time.sleep(reconnect_delay)
+
+                try:
+                    client.reconnect()
+                    print("Reconnected successfully!")
+                    return
+                except Exception as err:
+                    print("{}. Reconnect failed. Retrying...".format(err))
+
+                reconnect_delay *= RECONNECT_RATE # Increase delay exponentially
+                reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
+                reconnect_count += 1
+            print("Reconnect failed after {} attempts. Exiting...".format(reconnect_count))
+
+        # Callback for receiving messages from the MQTT broker
+        def on_message(client, userdata, msg):
+
+            print("Received data from `{}` topic".format(msg.topic))
+            promethify_data(msg)  # Process the received message for Prometheus metrics
+
+        # Initialize the MQTT client and assign the callbacks
+        client = mqtt_client.Client(sub_client_id)
+        client.on_connect = on_connect
+        client.on_disconnect = on_disconnect
+        client.on_message = on_message
+        client.connect(broker, sub_port)
+        return client
+
+    # Function to continuously run the MQTT subscriber
+    def sub_client_run():
+        sub_client = connect_sub_mqtt()
+        sub_client.loop_forever()
+
+    # Function to publish a request message to collect data
+    def request_data(client):
+        msg = 'Time to collect data.'
+        result = client.publish(pub_topic, msg)
+        status = result[0]
+        if status == 0:
+            print("Sent `{}` to topic `{}`".format(msg, pub_topic))
+        else:
+            print("Failed to send message to topic {}".format(pub_topic))
+
+    # Function to connect to the MQTT broker as a publisher
+    def connect_pub_mqtt():
+
+        def on_connect(client, userdata, flags, rc):
+            if rc == 0:
+                print("Connected to MQTT Broker!")
+            else:
+                print("Failed to connect, return code %d\n", rc)
+
+        client = mqtt_client.Client(pub_client_id)
+        client.on_connect = on_connect
+        client.connect(broker, pub_port)
+        return client
+
+    # Function to gather data by publishing a request message
+    def gather_data():
+        pub_client = connect_pub_mqtt()
+        pub_client.loop_start()
+        request_data(pub_client)
+        pub_client.loop_stop()
+
+    # Function to assign received data to Prometheus metrics
+    def assign_data(prom_var, data_name, sensor, jsondata):
+
+        value =  float(jsondata[data_name].replace(',', '.')) # Parse the value
+        if  value != -200:  # Exclude no readings
+            prom_var.labels(sensor).set(value) # Set the metric value with sensor label  
+
+    # Function to process received MQTT messages and update Prometheus metrics
+    def promethify_data(msg):
+
+        sensor = msg.topic.split('/')[1] # Extract sensor name from topic
+        # Decode and parse the JSON payload
+        jsondata_string = msg.payload.decode().replace("'", '"') 
+        jsondata = json.loads(jsondata_string)
+
+        # Assign each metric to the corresponding Prometheus variable
+        assign_data(air_quality_co_gt_gauge, "CO(GT)", sensor, jsondata)
+        assign_data(air_quality_pt08s1_co_gauge, "PT08.S1(CO)", sensor, jsondata)
+        assign_data(air_quality_nmhc_gt_gauge, "NMHC(GT)", sensor, jsondata)
+        assign_data(air_quality_c6h6_gt_gauge, "C6H6(GT)", sensor, jsondata)
+        assign_data(air_quality_pt08s2_nmhc_gauge, "PT08.S2(NMHC)", sensor, jsondata)
+        assign_data(air_quality_nox_gt_gauge, "NOx(GT)", sensor, jsondata)
+        assign_data(air_quality_pt08s3_nox_gauge, "PT08.S3(NOx)", sensor, jsondata)
+        assign_data(air_quality_no2_gt_gauge, "NO2(GT)", sensor, jsondata)
+        assign_data(air_quality_pt08s4_no2_gauge, "PT08.S4(NO2)", sensor, jsondata)
+        assign_data(air_quality_pt08s5_o3_gauge, "PT08.S5(O3)", sensor, jsondata)
+        assign_data(air_quality_t_gauge, "T", sensor, jsondata)
+        assign_data(air_quality_rh_gauge, "RH", sensor, jsondata)
+        assign_data(air_quality_ah_gauge, "AH", sensor, jsondata)
+\end{minted}
+
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{python}
+    from prometheus_client import Gauge
+
+    sub_port = 1883 # Port for the subscriber
+    pub_port = 1883 # Port for the publisher
+    sub_topic = "sensor-data/#" # Subscription topic for sensor data (wildcard for all subtopics)
+    pub_topic = "collect-data" # Topic to publish data collection requests
+    sub_client_id = 'subscribe-exporter' # Client ID for the MQTT subscriber
+    pub_client_id = 'publish-exporter' # Client ID for the MQTT publisher
+    #broker = 'localhost' # uncomment for local testing
+    broker = 'host.docker.internal' # Docker-specific hostname for connecting to the broker
+
+
+    # Prometheus metrics definitions
+    # Each metric is defined as a Prometheus Gauge with a description and a label for 'sensor'
+
+    air_quality_co_gt_gauge = Gauge('air_quality_co_gt_gauge', 'True hourly averaged concentration CO in mg/m^3 (reference analyzer)', ['sensor'])
+
+    air_quality_pt08s1_co_gauge = Gauge('air_quality_pt08s1_co_gauge', 'Tin oxide hourly averaged sensor response (nominally CO targeted)', ['sensor'])
+
+    air_quality_nmhc_gt_gauge = Gauge('air_quality_nmhc_gt_gauge', 'True hourly averaged overall Non Metanic HydroCarbons concentration in microg/m^3 (reference analyzer)', ['sensor'])
+
+    air_quality_c6h6_gt_gauge = Gauge('air_quality_c6h6_gt_gauge', 'True hourly averaged Benzene concentration in microg/m^3 (reference analyzer)', ['sensor'])
+
+    air_quality_pt08s2_nmhc_gauge = Gauge('air_quality_pt08s2_nmhc_gauge', 'Titania hourly averaged sensor response (nominally NMHC targeted)', ['sensor'])
+
+    air_quality_nox_gt_gauge = Gauge('air_quality_nox_gt_gauge', 'True hourly averaged NOx concentration in ppb (reference analyzer)', ['sensor'])
+
+    air_quality_pt08s3_nox_gauge = Gauge('air_quality_pt08s3_nox_gauge', 'Tungsten oxide hourly averaged sensor response (nominally NOx targeted)', ['sensor'])
+
+    air_quality_no2_gt_gauge = Gauge('air_quality_no2_gt_gauge', 'True hourly averaged NO2 concentration in microg/m^3 (reference analyzer)', ['sensor'])
+
+    air_quality_pt08s4_no2_gauge = Gauge('air_quality_pt08s4_no2_gauge', 'Tungsten oxide hourly averaged sensor response (nominally NO2 targeted)', ['sensor'])
+
+    air_quality_pt08s5_o3_gauge = Gauge('air_quality_pt08s5_o3_gauge', 'Indium oxide hourly averaged sensor response (nominally O3 targeted)', ['sensor'])
+
+    air_quality_t_gauge = Gauge('air_quality_t_gauge', 'Temperature in C', ['sensor'])
+
+    air_quality_rh_gauge = Gauge('air_quality_rh_gauge', 'Relative Humidity (%)', ['sensor'])
+
+    air_quality_ah_gauge = Gauge('air_quality_ah_gauge', 'Absolute Humidity', ['sensor'])
+\end{minted}
+
+Final output of the scripts on the endpoint that Prometheus scrapes is the Prometheus formated metrics and can be seen in an example below.
+
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{bash}
+    # HELP air_quality_co_gt_gauge True hourly averaged concentration CO in mg/m^3 (reference analyzer)
+    # TYPE air_quality_co_gt_gauge gauge
+    air_quality_co_gt_gauge{sensor="sensor-5"} 4.6
+    air_quality_co_gt_gauge{sensor="sensor-1"} 2.7
+    air_quality_co_gt_gauge{sensor="sensor-2"} 2.1
+    air_quality_co_gt_gauge{sensor="sensor-3"} 4.3
+    air_quality_co_gt_gauge{sensor="sensor-4"} 1.9
+    # HELP air_quality_pt08s1_co_gauge Tin oxide hourly averaged sensor response (nominally CO targeted)
+    # TYPE air_quality_pt08s1_co_gauge gauge
+    air_quality_pt08s1_co_gauge{sensor="sensor-5"} 1808.0
+    air_quality_pt08s1_co_gauge{sensor="sensor-1"} 1280.0
+    air_quality_pt08s1_co_gauge{sensor="sensor-2"} 1327.0
+    air_quality_pt08s1_co_gauge{sensor="sensor-3"} 1559.0
+    air_quality_pt08s1_co_gauge{sensor="sensor-4"} 1096.0
+    # HELP air_quality_nmhc_gt_gauge True hourly averaged overall Non Metanic HydroCarbons concentration in microg/m^3 (reference analyzer)
+    # TYPE air_quality_nmhc_gt_gauge gauge
+    air_quality_nmhc_gt_gauge{sensor="sensor-5"} 262.0
+    air_quality_nmhc_gt_gauge{sensor="sensor-1"} 122.0
+    air_quality_nmhc_gt_gauge{sensor="sensor-2"} 256.0
+    air_quality_nmhc_gt_gauge{sensor="sensor-3"} 535.0
+    air_quality_nmhc_gt_gauge{sensor="sensor-4"} 220.0
+    # HELP air_quality_c6h6_gt_gauge True hourly averaged Benzene concentration in microg/m^3 (reference analyzer)
+    # TYPE air_quality_c6h6_gt_gauge gauge
+    air_quality_c6h6_gt_gauge{sensor="sensor-5"} 20.6
+    air_quality_c6h6_gt_gauge{sensor="sensor-1"} 9.6
+    air_quality_c6h6_gt_gauge{sensor="sensor-2"} 9.8
+    air_quality_c6h6_gt_gauge{sensor="sensor-3"} 18.9
+    air_quality_c6h6_gt_gauge{sensor="sensor-4"} 9.2
+    # HELP air_quality_pt08s2_nmhc_gauge Titania hourly averaged sensor response (nominally NMHC targeted)
+    # TYPE air_quality_pt08s2_nmhc_gauge gauge
+    air_quality_pt08s2_nmhc_gauge{sensor="sensor-5"} 1312.0
+    air_quality_pt08s2_nmhc_gauge{sensor="sensor-1"} 964.0
+    air_quality_pt08s2_nmhc_gauge{sensor="sensor-2"} 971.0
+    air_quality_pt08s2_nmhc_gauge{sensor="sensor-3"} 1267.0
+    air_quality_pt08s2_nmhc_gauge{sensor="sensor-4"} 947.0
+    # HELP air_quality_nox_gt_gauge True hourly averaged NOx concentration in ppb (reference analyzer)
+    # TYPE air_quality_nox_gt_gauge gauge
+    air_quality_nox_gt_gauge{sensor="sensor-5"} 261.0
+    air_quality_nox_gt_gauge{sensor="sensor-1"} 193.0
+    air_quality_nox_gt_gauge{sensor="sensor-2"} 124.0
+    air_quality_nox_gt_gauge{sensor="sensor-3"} 230.0
+    air_quality_nox_gt_gauge{sensor="sensor-4"} 115.0
+    # HELP air_quality_pt08s3_nox_gauge Tungsten oxide hourly averaged sensor response (nominally NOx targeted)
+    # TYPE air_quality_pt08s3_nox_gauge gauge
+    air_quality_pt08s3_nox_gauge{sensor="sensor-5"} 753.0
+    air_quality_pt08s3_nox_gauge{sensor="sensor-1"} 963.0
+    air_quality_pt08s3_nox_gauge{sensor="sensor-2"} 803.0
+    air_quality_pt08s3_nox_gauge{sensor="sensor-3"} 653.0
+    air_quality_pt08s3_nox_gauge{sensor="sensor-4"} 872.0
+    # HELP air_quality_no2_gt_gauge True hourly averaged NO2 concentration in microg/m^3 (reference analyzer)
+    # TYPE air_quality_no2_gt_gauge gauge
+    air_quality_no2_gt_gauge{sensor="sensor-5"} 157.0
+    air_quality_no2_gt_gauge{sensor="sensor-1"} 113.0
+    air_quality_no2_gt_gauge{sensor="sensor-2"} 89.0
+    air_quality_no2_gt_gauge{sensor="sensor-3"} 149.0
+    air_quality_no2_gt_gauge{sensor="sensor-4"} 113.0
+    # HELP air_quality_pt08s4_no2_gauge Tungsten oxide hourly averaged sensor response (nominally NO2 targeted)
+    # TYPE air_quality_pt08s4_no2_gauge gauge
+    air_quality_pt08s4_no2_gauge{sensor="sensor-5"} 1993.0
+    air_quality_pt08s4_no2_gauge{sensor="sensor-1"} 1544.0
+    air_quality_pt08s4_no2_gauge{sensor="sensor-2"} 1705.0
+    air_quality_pt08s4_no2_gauge{sensor="sensor-3"} 2047.0
+    air_quality_pt08s4_no2_gauge{sensor="sensor-4"} 1519.0
+    # HELP air_quality_pt08s5_o3_gauge Indium oxide hourly averaged sensor response (nominally O3 targeted)
+    # TYPE air_quality_pt08s5_o3_gauge gauge
+    air_quality_pt08s5_o3_gauge{sensor="sensor-5"} 1698.0
+    air_quality_pt08s5_o3_gauge{sensor="sensor-1"} 1285.0
+    air_quality_pt08s5_o3_gauge{sensor="sensor-2"} 1120.0
+    air_quality_pt08s5_o3_gauge{sensor="sensor-3"} 1373.0
+    air_quality_pt08s5_o3_gauge{sensor="sensor-4"} 684.0
+    # HELP air_quality_t_gauge Temperature in C
+    # TYPE air_quality_t_gauge gauge
+    air_quality_t_gauge{sensor="sensor-5"} 18.4
+    air_quality_t_gauge{sensor="sensor-1"} 9.5
+    air_quality_t_gauge{sensor="sensor-2"} 21.6
+    air_quality_t_gauge{sensor="sensor-3"} 15.7
+    air_quality_t_gauge{sensor="sensor-4"} 18.6
+    # HELP air_quality_rh_gauge Relative Humidity (%)
+    # TYPE air_quality_rh_gauge gauge
+    air_quality_rh_gauge{sensor="sensor-5"} 41.7
+    air_quality_rh_gauge{sensor="sensor-1"} 64.1
+    air_quality_rh_gauge{sensor="sensor-2"} 41.7
+    air_quality_rh_gauge{sensor="sensor-3"} 62.5
+    air_quality_rh_gauge{sensor="sensor-4"} 36.9
+    # HELP air_quality_ah_gauge Absolute Humidity
+    # TYPE air_quality_ah_gauge gauge
+    air_quality_ah_gauge{sensor="sensor-5"} 0.8732
+    air_quality_ah_gauge{sensor="sensor-1"} 0.7597
+    air_quality_ah_gauge{sensor="sensor-2"} 1.0606
+    air_quality_ah_gauge{sensor="sensor-3"} 1.1092
+    air_quality_ah_gauge{sensor="sensor-4"} 0.7829
+\end{minted}
+
+To package the controller node application in a docker image, a simple Dockerfile was used. Using the official Python 3.11 image as base, all python modules are copied in the image along with the requirements file in order to install dependencies. After installing the dependencies and exposing one port for communication with the MQTT broker and one for the Prometheus metrics endpoint, the application is ready to run inside the container. An entrypoint was set to run the application using Gunicorn with Uvicorn workers.
+
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{dockerfile}
+    FROM python:3.11.0
+
+    # Set the working directory inside the container
+    WORKDIR /srv/exporter
+
+    # Add the main application and supporting scripts to the working directory
+    ADD exporter.py /srv/exporter/
+    ADD exporter_func.py /srv/exporter/
+    ADD exporter_var.py /srv/exporter/
+    ADD requirements.txt /srv/exporter/
+
+    # Set execute permissions for all users on the project directory
+    RUN chmod -R a+x /srv/exporter
+
+    # Install the Python dependencies specified in requirements.txt
+    RUN python3 -m pip install -r requirements.txt
+
+    # Expose the necessary ports for the Prometheus metrics endpoint and the MQTT protocol
+    EXPOSE 8000
+    EXPOSE 1883
+
+    # Set the entrypoint command to run the application using Gunicorn with Uvicorn workers
+    ENTRYPOINT [ "gunicorn", "-b", "0.0.0.0:8000", "exporter:app", "-k", "uvicorn.workers.UvicornWorker" ]
+\end{minted}
 
 \section{Prometheus}
+Setting up Prometheus is made extrememely easy, thanks to the usage of containers and the pre-build docker images available. Since Prometheus is such a widely used metrics collector and usually a core component of every observability stack, a lot of different images exist.
+Usually, the difference in these images are the base images used, additional features and functionalities provided, or the time it takes for updates on source to be made available on the image. In this implementation the official image was used, prom/prometheus, which can be found \href{https://hub.docker.com/r/prom/prometheus}{here}.
+Using this image, only a configuration yaml file and a few deployment flags need to be provided when starting the Prometheus container. The configuration file can contain an extensive list of settings, providing substansial granularity, but in most cases, such as in this implementation, only a few settings are crucial. These settings usually are some global configurations like scrape interval or scrape timeout and the scrape configurations that are organised in jobs. Each job can have it's own settings that override the global ones but must have at least one scrape targets. Scrape targers are the endpoints that Prometheus scrapes and can either be set statically, as it is done for this case, or dynamically and targets are automatically detected using Prometheus's Service Discovery.
+
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{yaml}
+    global:
+    scrape_interval:     15s
+    evaluation_interval: 15s
+
+    rule_files:
+    - prometheus_alerts_rules.yml
+
+    scrape_configs:
+
+    - job_name: prometheus # Collecting data from Prometheus itself
+        static_configs:
+        - targets: ['127.0.0.1:9090']
+
+    - job_name: sensors # Collecting metrics from the Controller Node
+        scrape_interval: 60s
+        scrape_timeout: 50s
+        static_configs:
+        - targets: ['host.docker.internal:8000'] # Using host.docker.internal to direct containerized prometheus to host's 127.0.0.1 (localhost)
+\end{minted}
+
+Some very important configuration settings are passed to the Prometheus container as flags when starting it. To be able to refresh configuration without restarting the whole container, configuration yamls are mounted onto the container from local storage, to make it easy to manipulate them, and the "--web.enable-lifecycle" flag is set. This enables users to update Prometheus configuration, to add additional scrape targets for example, by changing the config files and using Prometheus REST API to reload Prometheus. Also, to properly store the time-series database (TSDB), a host storage directory was mounted on the internal container storage directory. This ensures data integrity in case the containers crashes, or is stopped or deleted. Finally, using the "--storage.tsdb.retention.time" flag data retention time was set to one year.
 
 \section{Grafana}
+\subsection{Container setup}
+\subsection{Grafana settings}
+\subsection{Dashboard settings}
+\subsection{Air Pollution Metric Visualization}
 
 \section{Orchestration}
