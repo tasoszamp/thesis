@@ -408,6 +408,14 @@ Finally to build the image, below command was executed:
     $ docker build -t anastzampetis/sensor-emul:latest -f Dockerfile .
 \end{minted}
 
+\begin{figure}[!h]
+    \graphicspath{ {./screenshots/} }
+    \includegraphics[width=1\textwidth]{sensor-log.png}
+    \centering
+    \caption{Output log of the simulated sensor }
+    \label{fig:sensor_log}
+\end{figure}
+
 \section{MQTT Broker}
 For the MQTT broker, the Eclipse Mosquitto MQTT broker was selected. Mosquitto is an open-source message broker that implements the MQTT protocol. Mosquitto is designed to be small and efficient, suitable for IoT devices with constrained resources, and fits well in a microservice enviroment. It's also very capable of handling even large-scale deployments, making it a good fit for a scalable enviroment.
 
@@ -794,8 +802,28 @@ To package the controller node application in a docker image, a simple Dockerfil
 
 \section{Prometheus}
 Setting up Prometheus is made extrememely easy, thanks to the usage of containers and the pre-build docker images available. Since Prometheus is such a widely used metrics collector and usually a core component of every observability stack, a lot of different images exist.
+
 Usually, the difference in these images are the base images used, additional features and functionalities provided, or the time it takes for updates on source to be made available on the image. In this implementation the official image was used, prom/prometheus, which can be found \href{https://hub.docker.com/r/prom/prometheus}{here}.
+
 Using this image, only a configuration yaml file and a few deployment flags need to be provided when starting the Prometheus container. The configuration file can contain an extensive list of settings, providing substansial granularity, but in most cases, such as in this implementation, only a few settings are crucial. These settings usually are some global configurations like scrape interval or scrape timeout and the scrape configurations that are organised in jobs. Each job can have it's own settings that override the global ones but must have at least one scrape targets. Scrape targers are the endpoints that Prometheus scrapes and can either be set statically, as it is done for this case, or dynamically and targets are automatically detected using Prometheus's Service Discovery.
+
+Prometheus graphical user interface can be access on <hosts\_ip\_address>:9090
+
+\begin{figure}[!h]
+    \graphicspath{ {./screenshots/} }
+    \includegraphics[width=1\textwidth]{prometheus-graph.png}
+    \centering
+    \caption{Simple graphing options on Prometheus UI}
+    \label{fig:prom_graph}
+\end{figure}
+
+\begin{figure}[!h]
+    \graphicspath{ {./screenshots/} }
+    \includegraphics[width=1\textwidth]{prometheus-targets.png}
+    \centering
+    \caption{Prometheus targets UI overview}
+    \label{fig:prom_targets}
+\end{figure}
 
 \begin{minted}[%
     framesep=2mm,
@@ -828,8 +856,192 @@ Some very important configuration settings are passed to the Prometheus containe
 
 \section{Grafana}
 \subsection{Container setup}
-\subsection{Grafana settings}
-\subsection{Dashboard settings}
-\subsection{Air Pollution Metric Visualization}
+Setting up Grafana in a container is even simpler than Prometheus, since no configuration is needed when using the \href{official Grafana docker image}{https://hub.docker.com/r/grafana/grafana}.
+Other than minor settings provided as deployment flags when running the container, all other settings are provided through the graphical user interface (GUI). Those settings can then be exported as json files to make backups of the setup and ensure easy reproducability and disaster recovery.
+Also very important is to mount host's storage onto Grafana container's data storage so enviroment persists even if container crashes or is restarted.
 
+Grafana GUI can be access on <hosts\_ip\_address>:3000
+
+\subsection{Dashboard setup and Visualizations}
+Accessing Grafana using default admin credentials, allows for initial setup. If Grafana is going to be used outside of a local environment it is good practice for the default user to be either removed altogether and role-based access control (RBAC) to be setup, or at least change default password. In this implementation, defaults where changed using deployment flags.
+
+Prometheus was then added as a data source. Since Grafana is running inside a container, to point to host's localhost, "http://host.docker.internal:9090" was used as url. Other setting where left on default.
+
+When monitoring metrics, such as the air quality data utilized in this implementation, it is crucial to incorporate both historical data visualization and real-time monitoring to gain a comprehensive understanding of system performance. Historical representations provide invaluable insights by revealing trends over extended periods, highlighting spikes and anomalies, and allowing for the calculation of averages and other statistical measures. These insights lead to data-driven conclusions that can inform long-term strategies and enable proactive interventions to prevent potential issues before they escalate.
+
+Conversely, real-time monitoring offers immediate visibility into current conditions, which is essential for identifying abnormalities as they occur. This facilitates quick, reactive responses to any deviations from expected behavior and supports automated mediation processes to address issues promptly, minimizing potential negative impacts.
+
+To address both of these needs, this implementation features two distinct dashboards. The first dashboard focuses on historical data, presenting time-series graphs of all the collected sensor metrics. This dashboard was designed as a flexible template, with the sensor parameterized as a variable to enhance organization and maintainability. A dropdown menu allows users to select specific sensors for detailed analysis, with dynamic value generation powered by PromQL to ensure seamless data retrieval and display.
+
+The second dashboard is dedicated to providing a real-time overview of the latest collected values. It features gauge visualizations for all sensors and air quality metrics, organized by metric for easy navigation. These gauges are configured with color-coded thresholds to represent normal, slightly out-of-normal, and abnormal values, enabling users to quickly identify and address potential issues. The combination of these two dashboards ensures a holistic approach to air quality monitoring, balancing long-term analysis with immediate situational awareness. 
+
+\begin{figure}[!h]
+    \graphicspath{ {./screenshots/} }
+    \includegraphics[width=1\textwidth]{grafana-edit-view.png}
+    \centering
+    \caption{Grafana visualization edit panel}
+    \label{fig:graf-edit-panel}
+\end{figure}
+
+\begin{figure}[!h]
+    \graphicspath{ {./screenshots/} }
+    \includegraphics[width=1\textwidth]{grafana-variables-setup.png}
+    \centering
+    \caption{Grafana dashboard variables setup panel}
+    \label{fig:graf-history-whole}
+\end{figure}
+
+\begin{figure}[!h]
+    \graphicspath{ {./screenshots/} }
+    \includegraphics[width=1\textwidth]{grafana-history-whole.PNG}
+    \centering
+    \caption{Historical data visualizations dashboard}
+    \label{fig:graf-history-whole}
+\end{figure}
+
+\begin{figure}[!h]
+    \graphicspath{ {./screenshots/} }
+    \includegraphics[width=1\textwidth]{grafana-ah.png}
+    \centering
+    \caption{Absolute humidity time-series visualization}
+    \label{fig:graf-ah-hist}
+\end{figure}
+
+\begin{figure}[!h]
+    \graphicspath{ {./screenshots/} }
+    \includegraphics[width=1\textwidth]{live-whole.PNG}
+    \centering
+    \caption{Live value gauges dashboard}
+    \label{fig:graf-live-whole}
+\end{figure}
+
+\begin{figure}[!h]
+    \graphicspath{ {./screenshots/} }
+    \includegraphics[width=1\textwidth]{live-nmhc.PNG}
+    \centering
+    \caption{Live value gauges for NMHC(GT)}
+    \label{fig:graf-live-nmhc}
+\end{figure}
+
+\begin{figure}[!h]
+    \graphicspath{ {./screenshots/} }
+    \includegraphics[width=1\textwidth]{live-temp.PNG}
+    \centering
+    \caption{Live value gauges for temperature}
+    \label{fig:graf-live-temp}
+\end{figure}
+
+\begin{figure}[!h]
+    \graphicspath{ {./screenshots/} }
+    \includegraphics[width=1\textwidth]{live-rh.PNG}
+    \centering
+    \caption{Live value gauges for relative humidity}
+    \label{fig:graf-live-rh}
+\end{figure}
+
+\FloatBarrier
 \section{Orchestration}
+To bring this implementation together the numerus containers created need to be deployed and orchestrated. For dynamic applications or for services requiring high availability (HA), an orchestration tool like Kubernetes could be utilized but for a static implementation like this one where a set of containers need to be deployed as a single application, Docker Compose made more sense.
+
+Docker Compose is a tool for defining and running multi-container Docker applications using a simple YAML file. It simplifies container management by allowing defining services, networks, and volumes in a single file and spinning them up with a single command. Compared to Kubernetes, that would require setting up a cluster and defining deployments for all services/containers, Docker Compose can run on any local system equiped with Docker, making it great for local developement and small deployments.
+
+On this implementation's Docker Compose YAML file all components, the sensors, the MQTT broker, the controller node, Prometheus and Grafana are defined as individual services, with settings such as port mapping between containers and the host machine, mounted volumes, flags, environment variables and restart policies. Also a volume for Prometheus data was defined to ensure data intergrity in case container was stopped and deleted.
+
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{yaml}
+services:
+    mqtt_broker:
+        image: "eclipse-mosquitto:2.0.18"  # Using the Eclipse Mosquitto MQTT broker
+        container_name: "thesis-app.mqtt_broker"
+        volumes: 
+        - ./mqtt_broker/mosquitto.conf:/mosquitto/config/mosquitto.conf  # Mount custom Mosquitto configuration
+        ports:
+        - "1883:1883"  # MQTT default port
+        - "9001:9001"  # WebSockets support for MQTT
+        restart: unless-stopped  # Automatically restart unless manually stopped
+
+    exporter:
+        image: "anastzampetis/iot-exporter"  # Custom IoT data exporter
+        container_name: "thesis-app.exporter"
+        ports:
+        - "8000:8000"  # Expose exporter service on port 8000
+        restart: unless-stopped  # Ensure the service restarts if it fails
+
+    prometheus:
+        image: "prom/prometheus:v2.46.0"  # Prometheus monitoring service
+        container_name: "thesis-app.prometheus"
+        volumes:
+        - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml  # Custom Prometheus config
+        - ./prometheus/prometheus_alerts_rules.yml:/etc/prometheus/prometheus_alerts_rules.yml  # Alert rules (Empty but needed as file)
+        - prometheus_data:/prometheus  # Persistent data storage
+        ports:
+        - "9090:9090"  # Expose Prometheus on port 9090
+        command:
+        - "--config.file=/etc/prometheus/prometheus.yml"  # Specify config file
+        - "--web.enable-lifecycle"  # Allow configuration reload via API
+        - "--storage.tsdb.path=/prometheus"  # Set data storage location
+        - "--storage.tsdb.retention.time=1y"  # Retention policy. Keep data for 1 year
+        restart: unless-stopped  
+
+    grafana:
+        image: "grafana/grafana:10.2.2"  # Grafana visualization service
+        container_name: "thesis-app.grafana"
+        ports:
+        - "3000:3000"  # Expose Grafana GUI on port 3000
+        restart: unless-stopped 
+        environment:
+        - GF_SECURITY_ADMIN_USER=admin  # Admin username for Grafana
+        - GF_SECURITY_ADMIN_PASSWORD=grafana  # Admin password for Grafana
+        - GF_PATHS_DATA=/var/lib/grafana  # Set data storage path
+        volumes:
+        - ./grafana:/var/lib/grafana  # Persist Grafana data
+
+    # Sensor services - each sensor must be initialized separately because Docker replicas do not support dynamic variables and container names are not accessible from inside the container. (needed for MQQT client)
+    sensor-1:
+        image: "anastzampetis/sensor-emul"  # Custom sensor emulator image
+        container_name: "thesis-app.sensor-1"
+        hostname: "sensor-1"  # Set hostname for usage in the MQTT client
+        restart: unless-stopped 
+
+    sensor-2:
+        image: "anastzampetis/sensor-emul"
+        container_name: "thesis-app.sensor-2"
+        hostname: "sensor-2"
+        restart: unless-stopped
+
+    sensor-3:
+        image: "anastzampetis/sensor-emul"
+        container_name: "thesis-app.sensor-3"
+        hostname: "sensor-3"
+        restart: unless-stopped
+
+    sensor-4:
+        image: "anastzampetis/sensor-emul"
+        container_name: "thesis-app.sensor-4"
+        hostname: "sensor-4"
+        restart: unless-stopped
+
+    sensor-5:
+        image: "anastzampetis/sensor-emul"
+        container_name: "thesis-app.sensor-5"
+        hostname: "sensor-5"
+        restart: unless-stopped
+
+volumes:
+    prometheus_data:  # Persistent volume for Prometheus data storage
+\end{minted}
+
+By using the above Docker Compose YAML and "docker compose up" command, all required components for this implementation are reliably instantiated with the correct configurations. This approach ensures consistency and reproducibility, making deployment seamless and error-free.
+
+\begin{figure}[!h]
+    \graphicspath{ {./screenshots/} }
+    \includegraphics[width=1\textwidth]{docker_engine_compose.PNG}
+    \centering
+    \caption{Deployed application using Docker Compose in Docker engine's UI}
+    \label{fig:docker_compose}
+\end{figure}
