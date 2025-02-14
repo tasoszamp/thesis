@@ -5,10 +5,26 @@
 *.aux
 *.crt
 *.env
+*.fls
+*.log
+*.fdb*
+main.*
+!main.tex
+!main.pdf
 quickSoA.*
 !quickSoA.tex
 !quickSoA.pdf
+aux/
+article/_minted-main/
+
+
+# Application #
+###############
 .env
 __pycache__/
 application/grafana/
 !application/grafana/model.json
+
+# Draw.io #
+###########
+*.drawio.bkp

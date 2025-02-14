@@ -1,73 +1,80 @@
 services:
   mqtt_broker:
-    image: "eclipse-mosquitto:2.0.18"
+    image: "eclipse-mosquitto:2.0.18"  # Using the Eclipse Mosquitto MQTT broker
     container_name: "thesis-app.mqtt_broker"
     volumes: 
-      - ./mqtt_broker/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mqtt_broker/mosquitto.conf:/mosquitto/config/mosquitto.conf  # Mount custom Mosquitto configuration
     ports:
-      - "1883:1883"
-      - "9001:9001"
-    restart: unless-stopped
+      - "1883:1883"  # MQTT default port
+      - "9001:9001"  # WebSockets support for MQTT
+    restart: unless-stopped  # Automatically restart unless manually stopped
+
   exporter:
-    image: "anastzampetis/iot-exporter"
+    image: "anastzampetis/iot-exporter"  # Custom IoT data exporter
     container_name: "thesis-app.exporter"
     ports:
-      - "8000:8000"
-    restart: unless-stopped
+      - "8000:8000"  # Expose exporter service on port 8000
+    restart: unless-stopped  # Ensure the service restarts if it fails
+
   prometheus:
-    image: "prom/prometheus:v2.46.0"
+    image: "prom/prometheus:v2.46.0"  # Prometheus monitoring service
     container_name: "thesis-app.prometheus"
     volumes:
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./prometheus/prometheus_alerts_rules.yml:/etc/prometheus/prometheus_alerts_rules.yml
-      - prometheus_data:/prometheus
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml  # Custom Prometheus config
+      - ./prometheus/prometheus_alerts_rules.yml:/etc/prometheus/prometheus_alerts_rules.yml  # Alert rules (Empty but needed as file)
+      - prometheus_data:/prometheus  # Persistent data storage
     ports:
-      - "9090:9090"
+      - "9090:9090"  # Expose Prometheus on port 9090
     command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-      - "--web.enable-lifecycle"  
-      - "--storage.tsdb.path=/prometheus"  
-      - "--storage.tsdb.retention.time=1y"
-    restart: unless-stopped
+      - "--config.file=/etc/prometheus/prometheus.yml"  # Specify config file
+      - "--web.enable-lifecycle"  # Allow configuration reload via API
+      - "--storage.tsdb.path=/prometheus"  # Set data storage location
+      - "--storage.tsdb.retention.time=1y"  # Retention policy. Keep data for 1 year
+    restart: unless-stopped  
+
   grafana:
-    image: "grafana/grafana:10.2.2"
+    image: "grafana/grafana:10.2.2"  # Grafana visualization service
     container_name: "thesis-app.grafana"
     ports:
-      - "3000:3000"
-    restart: unless-stopped
+      - "3000:3000"  # Expose Grafana GUI on port 3000
+    restart: unless-stopped 
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=grafana
-      - GF_PATHS_DATA=/var/lib/grafana
+      - GF_SECURITY_ADMIN_USER=admin  # Admin username for Grafana
+      - GF_SECURITY_ADMIN_PASSWORD=grafana  # Admin password for Grafana
+      - GF_PATHS_DATA=/var/lib/grafana  # Set data storage path
     volumes:
-      - ./grafana:/var/lib/grafana
-  # forced to init every sensor individually since replicas do not have a variabled option and container name is not accessible from inside the container
+      - ./grafana:/var/lib/grafana  # Persist Grafana data
+
+  # Sensor services - each sensor must be initialized separately because Docker replicas do not support dynamic variables and container names are not accessible from inside the container. (needed for MQQT client)
   sensor-1:
-    image: "anastzampetis/sensor-emul"
+    image: "anastzampetis/sensor-emul"  # Custom sensor emulator image
     container_name: "thesis-app.sensor-1"
-    hostname: "sensor-1"
-    restart: unless-stopped
+    hostname: "sensor-1"  # Set hostname for usage in the MQTT client
+    restart: unless-stopped 
+
   sensor-2:
     image: "anastzampetis/sensor-emul"
     container_name: "thesis-app.sensor-2"
     hostname: "sensor-2"
     restart: unless-stopped
+
   sensor-3:
     image: "anastzampetis/sensor-emul"
     container_name: "thesis-app.sensor-3"
     hostname: "sensor-3"
     restart: unless-stopped
+
   sensor-4:
     image: "anastzampetis/sensor-emul"
     container_name: "thesis-app.sensor-4"
     hostname: "sensor-4"
     restart: unless-stopped
+
   sensor-5:
     image: "anastzampetis/sensor-emul"
     container_name: "thesis-app.sensor-5"
     hostname: "sensor-5"
     restart: unless-stopped
-  
+
 volumes:
-  prometheus_data:  
-    
+  prometheus_data:  # Persistent volume for Prometheus data storage

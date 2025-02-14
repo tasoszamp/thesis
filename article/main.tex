@@ -1,0 +1,140 @@
+\documentclass[a4paper,12pt,twoside]{book}
+\usepackage{extra/upatras-thesis}
+%
+% These commands need to be defined in order to produce a correct and personalized document
+%
+\newcommand{\shortdoctitle}{Thesis}
+\newcommand{\doctitle}{Data Search \& Extraction with Microservices}
+\newcommand{\doctitlegr}{Αναζήτηση \& Εξόρυξη Δεδομένων με Microservices}
+% \newcommand{\docsubtitle}{Υπότιτλος εγγράφου}
+\newcommand{\division}{Electronics and Computers Department}
+\newcommand{\lab}{NaN}
+\newcommand{\uni}{University of Patras}
+\newcommand{\unigr}{Πανεπιστήμιο Πατρών}
+
+\newcommand{\me}{Anastasios Zampetis of Michael} %(σε γενική πτώση) ΠΡΟΣΟΧΗ: στοιχεία σε γενική πτώση. Παράδειγμα: Άγγελου Σικελιανού του Ιωάννη
+\newcommand{\megr}{Αναστασίου Ζαμπέτη του Μιχαήλ} %(σε γενική πτώση) ΠΡΟΣΟΧΗ: στοιχεία σε γενική πτώση. Παράδειγμα: Άγγελου Σικελιανού του Ιωάννη
+%
+\newcommand{\nomme}{Anastasios Zampetis of Michael} %(σε ονομαστική πτώση) ΠΡΟΣΟΧΗ: στοιχεία σε ονομαστική πτώση. Παράδειγμα: Άγγελος Σικελιανός του Ιωάννη
+%
+\newcommand{\studnum}{228322}
+\newcommand{\keywords}{Microservices; Data; Internet of Things; Containers}
+\newcommand{\monthyear}{February 2025}
+
+\newcommand{\supname}{Dr. Evangelos Dermatas}
+\newcommand{\suptitle}{Professor}
+\newcommand{\supnamegr}{Δρ. Ευάγγελος Δερματάς}
+\newcommand{\suptitlegr}{Καθηγητής}
+
+\newcommand{\cosupname}{NaN}
+\newcommand{\cosuptitle}{NaN}
+\newcommand{\cosupnamegr}{NaN}
+\newcommand{\cosuptitlegr}{NaN}
+
+\newcommand{\headofdivision}{Dr. George Theodoridis}
+\newcommand{\headofdivisiontitle}{Assistant Professor}
+\newcommand{\headofdivisiongr}{Δρ. Γεώργιος Θεοδωρίδης}
+\newcommand{\headofdivisiontitlegr}{Αναπληρωτής Καθηγητής}
+
+\author{\me}
+
+% GLOSSARY
+
+\makeglossaries
+\setlength{\glsdescwidth}{0.7\hsize}
+\setlength{\headheight}{15pt}
+%\input{extra/glossary}
+
+% BEGIN DOCUMENT
+\begin{document}
+
+% SET PAGE NUMBERING TO ROMAN
+\pagenumbering{roman}
+\setcounter{page}{3}
+
+%*************************%
+%         TITLES          %
+%*************************%
+
+\include{intro/titlepage}
+\clearemptydoublepage
+
+\include{intro/certification-gr}
+\clearemptydoublepage
+
+\include{intro/certification-en}
+\clearemptydoublepage
+
+\include{intro/about}
+\clearemptydoublepage
+
+\include{intro/summary}
+\clearemptydoublepage
+
+\include{intro/keywords}
+\clearemptydoublepage
+
+\include{intro/acknowledgements}
+\clearemptydoublepage
+
+\pagestyle{empty}
+
+{\hypersetup{linkcolor=black}
+\tableofcontents
+}
+\clearemptydoublepage
+
+{\hypersetup{linkcolor=black}
+\listoffigures
+\listoftables
+}
+\glsaddall
+\printglossary[style = mylong]
+\printglossary[type=acronym,style=custom_acronyms]
+\clearemptydoublepage
+
+\mainmatter % book mode only
+\clearemptydoublepage
+
+
+\pagestyle{fancy}
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+%*************************%
+%       Main Chapters     %
+%*************************%
+
+% % Introduction
+% \input{chapters/introduction.tex}
+% \clearemptydoublepage
+
+% Chapter 1
+\input{chapters/design_concepts.tex}
+\clearemptydoublepage
+
+\input{chapters/technologies.tex}
+\clearemptydoublepage
+
+\input{chapters/implementation.tex}
+\clearemptydoublepage
+
+\input{chapters/conclusion.tex}
+\clearemptydoublepage
+
+% Next Chapters
+% .............
+% .............
+
+%**************************%
+%    END OF MAIN THESIS    %
+%**************************%
+
+% bibliography
+\bibliographystyle{unsrt}
+\bibliography{extra/bibliography.bib}
+\clearemptydoublepage
+
+% Last Page
+\input{intro/lastpage}
+\end{document}

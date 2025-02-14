@@ -1,0 +1,23 @@
+\chapter{Conclusion and Future Improvements} \label{ch:conclusion}
+
+\section{Conclusion}
+This thesis proposed a microservices-based architecture to enhance data availability for real-time and historical analysis and decision-making in IoT-based environments. The fundamental aim was to showcase the benefits of microservice architecture and containerization of applications. The implementation of this thesis made apparent that it is effective, modular, and scalable to develop, maintain, manage, and deploy each separate part of an application in a microservices architecture.
+
+One of the most crucial advantages observed was the seamless integration of all the components with the capability to scale them individually. The inherent reliability of the system also increased, as failed components can easily be reinstantiated without affecting the operation of the remainder of the services. This makes microservices a prime candidate for handling data in IoT environments, where decentralization and scalability are the prime considerations.
+
+Furthermore, the implementation showed the effectiveness of the Prometheus and Grafana monitoring stack in providing real-time as well as historical insight into metrics. Real-time observability of system performance and data trends is critical to facilitating informed, data-driven decision-making. The implementation showcased how microservices, when correctly integrated with monitoring tools, enhance visibility in systems and result in greater operational resilience.
+
+Lastly, the thesis highlights the necessity of proper service orchestration for handling communication overhead and facilitating seamless interaction between services. It is clearly illustrated that a well-designed microservices architecture, along with suitable containerization and monitoring techniques, can greatly enhance system performance, modularity, and resilience.
+
+\section{Future Improvements}
+The deployment of the microservices-based data search and extraction application has been successful but a improvements can be applied to multiple components to improve it's robustness, scalability and value as an observability platform.
+
+First of all, to get real world value out of the system, simulated sensors can be swapped with real ones. A cluster of IoT sensors can be deployed around campus to monitor air quality, weather conditions, temperature reading in rooms housing critical components like servers and even detect harmful gases. 
+
+Implementing Kubernetes for container orchestration would be the next step. Utilizing Kubernetes, would allow for transforming the system towards high availability and greatly improve the scalability and robustness of the system. For better and easier resource management and scalability, a Container-as-a-Service (CaaS) solution, such as Elastic Kubernetes Service (EKS) can be used.
+
+To ensure data integrity and to facilitate longer data retention and data storage system can be implemented. A solution with a combination of Thanos and Simple Storage Service (S3) can be utilized to not only facilitate scalable storage but also allow for multiple Prometheus instances with fast and easy data access.
+
+To enhance the monitoring stack, alerts can be setup. Using AlertManage or Grafana's build-in support for alerts, notifications about metrics exiding typical ranges can be created. Depending on how critical these events are notifications can be anything from emails, texts to physical alarms.
+
+Lastly, to really accentuate the ease of deploying microservice-based applications, Continuous Intergration and Continuous Deployment (CI/CD) pipelines can be developed. This would contribute to easier development and enable automated testing and seamless deployments.
