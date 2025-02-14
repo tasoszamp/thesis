@@ -11,9 +11,9 @@ A controller service was implemented as a Python application. This application s
 
 Prometheus was deployed in a Docker container and configured to periodically scrape the data exposed by the controller service and to retain it for an appropriate amount of time.
 
-Finally, Grafana was deployed as the visualization layer of the system, again in its own Docker container. Grafana was configured to use Prometheus as its data source. Custom dashboards were created to visualize the air quality data collected from the simulated sensors, enabling real-time monitoring and analysis.
+Finally, Grafana was deployed as the visualization layer of the system, again in its own Docker container. Grafana was configured to use Prometheus as its data source. Custom dashboards were created to visualize the air quality data collected from the simulated sensors, enabling real-time monitoring and analysis along with trend and spike detection.
 
-The entire system was deployed using Docker Compose to allow for a easy orchestration and management of all the containerized services and for a straightforward, scalable and reproducible deployment.
+The entire system was deployed using Docker Compose to allow for easy orchestration and management of all the containerized services and for a straightforward, scalable and reproducible deployment.
 
 \begin{figure}[!h]
     \graphicspath{ {./diagrams/} }
@@ -25,7 +25,7 @@ The entire system was deployed using Docker Compose to allow for a easy orchestr
 
 \section{Dataset}
 \subsection{Dataset Description}
-The dataset used contains the responses of a gas multisensor device deployes on the field in an Italian city. Hourly responses averages are recorded along with gas concentrations references from a certified analyzer. The dataset contains 9357 instances of hourly averaged responses from an array of 5 metal oxide chemical sensors embedded in an Air Quality Chemical Multisensor Device. Ground Truth hourly averaged concentrations for CO, Non Metanic Hydrocarbons, Benzene, Total Nitrogen Oxides (NOx) and Nitrogen Dioxide (NO2) were provided by a co-located reference certified analyzer. Dataset can be found \href{https://www.kaggle.com/datasets/fedesoriano/air-quality-data-set/data}{here}.
+The dataset used contains the responses of a gas multi-sensor device deployed on the field in an Italian city. Hourly responses averages are recorded along with gas concentrations references from a certified analyzer. The dataset contains 9357 instances of hourly averaged responses from an array of 5 metal oxide chemical sensors embedded in an Air Quality Chemical Multisensor Device. Ground Truth hourly averaged concentrations for CO, Non Metanic Hydrocarbons, Benzene, Total Nitrogen Oxides (NOx) and Nitrogen Dioxide (NO2) were provided by a co-located reference certified analyzer. Dataset can be found \href{https://www.kaggle.com/datasets/fedesoriano/air-quality-data-set/data}{here}.
 
 \begin{table}[!h]
 \begin{tabular}{|c|p{0.8\linewidth}|}
@@ -56,7 +56,7 @@ The dataset used contains the responses of a gas multisensor device deployes on 
 
 \subsection{Dataset Manipulation}
 Dataset was originally formatted in comma-separated values (CSV) format to be easily imported in a spreadsheet. To bring the CSV formatted dataset in a programmatically friendlier json format, a python script was developed. 
-To assist with the randomized nature of data generation by the sensor simulator, for every timestamp a json object was created, with key an incremental integer and value the collection of metrics in json object format. Also empty rows were removed.
+To assist with the randomized nature of data generation by the sensor simulator, for every timestamp, a json object was created, with key an incremental integer and value the collection of metrics in json object format. Also, empty rows were removed.
 
 \begin{minted}[%
     framesep=2mm,
@@ -108,7 +108,7 @@ To assist with the randomized nature of data generation by the sensor simulator,
     os.remove('edited_csv')
 \end{minted}
 
-The json re-formated dataset is structured as seen below.
+The json re-formatted dataset is structured as seen below.
 
 \begin{minted}[%
     framesep=2mm,
@@ -161,7 +161,7 @@ The json re-formated dataset is structured as seen below.
 \subsection{Scenario}
 The sensors remain in a low-power idle state to conserve energy. They are subscribed to the "collect-data" topic but are not actively collecting or publishing data. The controller node publishes a message to the MQTT topic "collect-data". This message is broadcast to all subscribed sensors by the MQTT broker. Upon receiving the trigger from the collect-data topic, sensors begin collecting air quality metrics. After collecting the data, each sensor publishes its metrics to its respective MQTT topic and returns to an idle state.
 \subsection{Application}
-As described on the scenario, first action on the application is establishing a connection to the MQTT broker, making sure to reconnect in case of disconnection, which would happen often in a real case scenario utilizing an unreliable cellular connection and subscribing to the "collect-data" topic. Then, once a message from the topic is received the data collection and publishing script is executed.
+As described on the scenario, first action on the application is establishing a connection to the MQTT broker, making sure to reconnect in case of disconnection, which would happen often in a real case scenario utilizing an unreliable cellular connection and subscribing to the "collect-data" topic. Then, once a message from the topic is received, the data collection and publishing script is executed.
 
 \begin{minted}[%
     framesep=2mm,
@@ -251,7 +251,7 @@ As described on the scenario, first action on the application is establishing a 
         run()
 \end{minted}
 
-The data collection script, again starts by establishing a connection client with the MQTT broker. Once connection is established, the data collection process starts. To simulate a real-world scenario, to add variation between the multiple sensors and a randomization element, that also prolongs the use of the dataset before going over the same data, an elaborate process was devised. To ensure the randomized data have a real-world, logical flow, the next data point is selected from the range (previous - 2, previous + 3). This ensures that the metrics collected each time are only a few hours apart instead of completely random, which would result in completely abnormal differences on metrics that wouldn't be observed on metrics taken a few minutes or an hour apart. It also ensures that the data point slowly moves forward in time, as to not overly repeat the same data. The starting point for this process is randomized using another script, to ensure results between sensors don't overlap heavily. Since the data collection process is ephemeral, the data points needs to be stored. This could have been achieved in a number of ways, like passing it back and forth between the main subscription script or using an environmental variable, but storing to a file was preferred as it could also be utilized if a recovery scenario was to be covered. Once the end of the database is reached, a new starting point is, again, randomly selected.
+The data collection script, again, starts by establishing a connection client with the MQTT broker. Once connection is established, the data collection process starts. To simulate a real-world scenario, to add variation between the multiple sensors and a randomization element, that also prolongs the use of the dataset before going over the same data, an elaborate process was devised. To ensure the randomized data have a real-world, logical flow, the next data point is selected from the range (previous - 2, previous + 3). This ensures that the metrics collected each time are only a few hours apart instead of completely random, which would result in completely abnormal differences on metrics that wouldn't be observed on metrics taken a few minutes or an hour apart. It also ensures that the data point slowly moves forward in time, as to not overly repeat the same data. The starting point for this process is randomized using another script, to ensure results between sensors don't overlap heavily. Since the data collection process is ephemeral, the data points needs to be stored. This could have been achieved in a number of ways, like passing it back and forth between the main subscription script or using an environmental variable, but storing to a file was preferred as it could also be utilized if a recovery scenario was to be covered. Once the end of the database is reached, a new starting point is, again, randomly selected.
 
 \begin{minted}[%
     framesep=2mm,
@@ -369,7 +369,7 @@ The data collection script, again starts by establishing a connection client wit
 Only libraries required, are "paho-mqtt" and "python-dotenv".
 
 \subsection{Containerization}
-IoT sensors usually are embedded on microcontrollers with limited hardware resources. While minimal, optimized subsets of Python do exist, building the Python scripts and using the binaries directly, makes more sense. To stick with the minimal, lightweight enviroment expected in an IoT microcontroller, a minimal linux docker image as base is a good fit. The \href{https://hub.docker.com/_/alpine/}{Alpine docker image} was selected, as it is the industry standard for minimal, striped down Linux images, and current latest ones are only around 5MB uncompressed. To build the Python scripts PyInstaller was used, but because Alpine utilizes \href{https://musl.libc.org/}{Musl C library}, instead of the \href{https://www.gnu.org/software/libc/}{GNU C library}, a third party PyInstaller-ready, Alpine-based Python image was used, that can be found \href{https://github.com/six8/pyinstaller-alpine}{here}. Using this image also removes the requirement of installing PyInstaller, a great example of how docker removes environmental dependencies. The following command was used:
+IoT sensors usually are embedded on microcontrollers with limited hardware resources. While minimal, optimized subsets of Python do exist, building the Python scripts and using the binaries directly, makes more sense. To stick with the minimal, lightweight enviroment expected in an IoT microcontroller, a minimal linux docker image as base is a good fit. The \href{https://hub.docker.com/_/alpine/}{Alpine docker image} was selected, as it is the industry standard for minimal, striped down Linux images, and current latest ones are only around 5MB uncompressed. To build the Python scripts, PyInstaller was used, but because Alpine utilizes \href{https://musl.libc.org/}{Musl C library}, instead of the \href{https://www.gnu.org/software/libc/}{GNU C library}, a third party, PyInstaller-ready, Alpine-based Python image was used, that can be found \href{https://github.com/six8/pyinstaller-alpine}{here}. Using this image also removes the requirement of installing PyInstaller, a great example of how docker removes environmental dependencies. The following command was used:
 \begin{minted}[%
     framesep=2mm,
     baselinestretch=1.2,
@@ -434,9 +434,9 @@ To stay true to a microservice architecture and to make deployment and managemen
 \end{minted}
 
 \section{Controller Node}
-The controller node serves a number of important functions. Firstly, it's responsible for publishing on the "collect-data" MQTT topic, so the sensor simulators will leave the idle state and collect the data. Then, by subscribing to the topics the sensors publish to, "sensor-data/\#" (usign a wildcard topic definition also allows for scaling of sensors), the controller node will receive messages from each topic, containing the sensor data.
+The controller node serves a number of important functions. Firstly, it's responsible for publishing on the "collect-data" MQTT topic, so the sensor simulators will leave the idle state and collect the data. Then, by subscribing to the topics the sensors publish to, "sensor-data/\#" (usign a wildcard topic definition also allows for scaling the sensors), the controller node will receive messages from each topic, containing the sensor data.
 
-Once these messages are received, using the "prometheus\_client" library all metrics are converted in Prometheus format and exposed to an endpoint. Every metric is assigned to a different Gauge type Prometheus metric and labeled usign the sensor unique id. A gauge is a metric that represents a single numerical value that can arbitrarily go up and down. This part of the controller's functionality is essensially a Prometheus exporter.
+Once these messages are received, using the "prometheus\_client" Python library all metrics are converted in Prometheus format and exposed to an endpoint. Every metric is assigned to a different Gauge type Prometheus metric and labeled usign the sensor unique id. A gauge is a metric that represents a single numerical value that can arbitrarily go up or down. This part of the controller's functionality is essensially a Prometheus exporter.
 
 Usually Prometheus exporters collect data periodically, but continiously expose last collected metrics on an HTTP endpoint. In this case, thought, to make it easier to change the rate of data collection, by changing the scraping rate of Prometheus, a different design was implemented. The controller, utilizing the "fastapi" library and "gunicorn" exposes an API endpoint. When Prometheus scrapes this endpoint, the data collection process is triggered by the controller, and after a small time delay the controller respondes with the metrics. Implementation is split between a main script and two modules.
 
@@ -805,7 +805,7 @@ Setting up Prometheus is made extrememely easy, thanks to the usage of container
 
 Usually, the difference in these images are the base images used, additional features and functionalities provided, or the time it takes for updates on source to be made available on the image. In this implementation the official image was used, prom/prometheus, which can be found \href{https://hub.docker.com/r/prom/prometheus}{here}.
 
-Using this image, only a configuration yaml file and a few deployment flags need to be provided when starting the Prometheus container. The configuration file can contain an extensive list of settings, providing substansial granularity, but in most cases, such as in this implementation, only a few settings are crucial. These settings usually are some global configurations like scrape interval or scrape timeout and the scrape configurations that are organised in jobs. Each job can have it's own settings that override the global ones but must have at least one scrape targets. Scrape targers are the endpoints that Prometheus scrapes and can either be set statically, as it is done for this case, or dynamically and targets are automatically detected using Prometheus's Service Discovery.
+Using this image, only a configuration yaml file and a few deployment flags need to be provided when starting the Prometheus container. The configuration file can contain an extensive list of settings, providing substansial granularity, but in most cases, such as in this implementation, only a few settings are crucial. These settings usually are some global configurations like scrape interval or scrape timeout and the scrape configurations that are organised in jobs. Each job can have it's own settings that override the global ones and must have at least one scrape targets. Scrape targers are the endpoints that Prometheus scrapes and can either be set statically, as it is done for this case, or dynamically and targets are automatically detected using Prometheus's Service Discovery.
 
 Prometheus graphical user interface can be access on <hosts\_ip\_address>:9090
 
@@ -852,7 +852,7 @@ Prometheus graphical user interface can be access on <hosts\_ip\_address>:9090
         - targets: ['host.docker.internal:8000'] # Using host.docker.internal to direct containerized prometheus to host's 127.0.0.1 (localhost)
 \end{minted}
 
-Some very important configuration settings are passed to the Prometheus container as flags when starting it. To be able to refresh configuration without restarting the whole container, configuration yamls are mounted onto the container from local storage, to make it easy to manipulate them, and the "--web.enable-lifecycle" flag is set. This enables users to update Prometheus configuration, to add additional scrape targets for example, by changing the config files and using Prometheus REST API to reload Prometheus. Also, to properly store the time-series database (TSDB), a host storage directory was mounted on the internal container storage directory. This ensures data integrity in case the containers crashes, or is stopped or deleted. Finally, using the "--storage.tsdb.retention.time" flag data retention time was set to one year.
+Some very important configuration settings are passed to the Prometheus container as flags when starting it. To be able to refresh configuration without restarting the whole container, configuration yamls are mounted onto the container from local storage, to make it easy to manipulate them, and the "--web.enable-lifecycle" flag is set. This enables users to update Prometheus configuration, for example to add additional scrape targets, by changing the config files and using Prometheus REST API to reload Prometheus. Also, to properly store the time-series database (TSDB), a host storage directory was mounted on the internal container storage directory. This ensures data integrity in case the containers crashes, or is stopped or deleted. Finally, using the "--storage.tsdb.retention.time" flag, data retention time was set to one year.
 
 \section{Grafana}
 \subsection{Container setup}
@@ -941,11 +941,11 @@ The second dashboard is dedicated to providing a real-time overview of the lates
 
 \FloatBarrier
 \section{Orchestration}
-To bring this implementation together the numerus containers created need to be deployed and orchestrated. For dynamic applications or for services requiring high availability (HA), an orchestration tool like Kubernetes could be utilized but for a static implementation like this one where a set of containers need to be deployed as a single application, Docker Compose made more sense.
+To bring this implementation together the numerus containers created need to be deployed and orchestrated. For dynamic applications or for services requiring high availability (HA), an orchestration tool like Kubernetes could be utilized, but for a static implementation like this one, where a set of containers need to be deployed as a single application, Docker Compose made more sense.
 
 Docker Compose is a tool for defining and running multi-container Docker applications using a simple YAML file. It simplifies container management by allowing defining services, networks, and volumes in a single file and spinning them up with a single command. Compared to Kubernetes, that would require setting up a cluster and defining deployments for all services/containers, Docker Compose can run on any local system equiped with Docker, making it great for local developement and small deployments.
 
-On this implementation's Docker Compose YAML file all components, the sensors, the MQTT broker, the controller node, Prometheus and Grafana are defined as individual services, with settings such as port mapping between containers and the host machine, mounted volumes, flags, environment variables and restart policies. Also a volume for Prometheus data was defined to ensure data intergrity in case container was stopped and deleted.
+On this implementation's Docker Compose YAML file, all components, the sensors, the MQTT broker, the controller node, Prometheus and Grafana are defined as individual services.Additionally, service settings, such as port mappings between containers and the host machine, mounted volumes, flags, environment variables and restart policies, were defined. Finally, a volume for Prometheus data was defined, to ensure data intergrity in case container was stopped and deleted.
 
 \begin{minted}[%
     framesep=2mm,
