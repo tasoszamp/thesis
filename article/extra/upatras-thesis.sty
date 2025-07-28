@@ -171,6 +171,18 @@
 
 
 %*******************************%
+%	 UN-NUMBERED SECTIONS FORMAT	%
+%*******************************%
+\newcommand{\usection}[1]{\section*{#1}
+\addcontentsline{toc}{section}{\protect\numberline{}#1}}
+
+\newcommand{\usubsection}[1]{\subsection*{#1}
+\addcontentsline{toc}{subsection}{\protect\numberline{}#1}}
+
+\newcommand{\usubsubsection}[1]{\subsubsection*{#1}
+\addcontentsline{toc}{subsubsection}{\protect\numberline{}#1}}
+
+%*******************************%
 %					ALGORITHM2E KW				%
 %*******************************%
 % \SetKwInput{KwDet}{Determine}
