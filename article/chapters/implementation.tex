@@ -59,8 +59,9 @@ The dataset used contains the responses of a gas multi-sensor device deployed on
 
 \subsection{Dataset Manipulation}
 Dataset was originally formatted in comma-separated values (CSV) format to be easily imported in a spreadsheet. To bring the CSV formatted dataset in a programmatically friendlier json format, a python script was developed. 
-To assist with the randomized nature of data generation by the sensor simulator, for every timestamp, a json object was created, with key an incremental integer and value the collection of metrics in json object format. Also, empty rows were removed.
+To assist with the randomized nature of data generation by the sensor simulator, for every timestamp, a json object was created, with key an incremental integer and value the collection of metrics in json object format. Also, empty rows or rows with empty fields were removed, so that generated synthetic data would not contain any gaps.
 
+Function to remove empty rows or rows with empty fields from the original CSV dataset:
 \begin{minted}[%
     framesep=2mm,
     baselinestretch=1.2,
@@ -68,28 +69,24 @@ To assist with the randomized nature of data generation by the sensor simulator,
     fontsize=\footnotesize,
     breaklines
     ]{python}
-    import csv
-    import sys
-    import json
-    import os
-
-    # Creates a new csv file named 'edited_csv' that doesn't contain empty rows, or rows with empty fields
     def csv_cleanup(csvfilename):
         with open(csvfilename, newline='') as csvfile:
             with open('edited_csv', 'w', newline='') as edited_csvfile:
                 original = csv.reader(csvfile, delimiter=';')
                 edited = csv.writer(edited_csvfile, delimiter=';')
-                # fieldnames = next(original)
-                # fieldnames.insert(0, "#")
-                # edited.writerow(fieldnames)
-                # i = 1
                 for row in original:
                     if row and any(row) and any(field.strip() for field in row):
-                        # row.insert(0, i)
                         edited.writerow(row)
-                        # i += 1
+\end{minted}
 
-    # Creates a json file from the edited csv file with an incremental integer as keys
+Function to convert the cleaned CSV dataset to json format with incremental integer keys:
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{python}
     def csv_to_json(filename):
         data_dict = {}
         with open('edited_csv', newline='') as csvfile:
@@ -100,15 +97,6 @@ To assist with the randomized nature of data generation by the sensor simulator,
                 key += 1
         with open(filename+'.json', 'w') as jsonfile:
             jsonfile.write(json.dumps(data_dict, indent = 4))
-
-
-
-    csvfilename = sys.argv[1]
-    filename = csvfilename.split('/')[-1].split('.')[0]
-
-    csv_cleanup(csvfilename)
-    csv_to_json(filename)
-    os.remove('edited_csv')
 \end{minted}
 
 The json re-formatted dataset is structured as seen below.
@@ -166,6 +154,7 @@ The sensors remain in a low-power idle state to conserve energy. They are subscr
 \subsection{Application}
 As described on the scenario, first action on the application is establishing a connection to the MQTT broker, making sure to reconnect in case of disconnection, which would happen often in a real case scenario utilizing an unreliable cellular connection and subscribing to the "collect-data" topic. Then, once a message from the topic is received, the data collection and publishing script is executed.
 
+Function to connect to the MQTT broker, handle reconnections and subscribe to the "collect-data" topic as well as kick off the data collection process upon receiving a message:
 \begin{minted}[%
     framesep=2mm,
     baselinestretch=1.2,
@@ -173,32 +162,15 @@ As described on the scenario, first action on the application is establishing a 
     fontsize=\footnotesize,
     breaklines
     ]{python}
-    import socket
-    import time
-    import subprocess
-    import paho.mqtt.client as mqtt_client
-
-    port = 1883  # Default port for MQTT communication
-    topic = "collect-data"  # Topic to subscribe to for data collection
-    hostname = socket.gethostname()  # Get the hostname of the machine running this script. Machine (container) hostname is enforced later-on by docker compose 
-    client_id = 'subscribe-{}'.format(hostname)  # Unique client ID for MQTT connection
-    # broker = 'localhost'  # Uncomment this line for local broker testing
-    broker = 'host.docker.internal'  # Use when running in a Docker environment
-
-    def connect_mqtt():
+    def on_connect(client, userdata, flags, rc):
         """
-        Connects to the MQTT broker and sets up event handlers for connect, disconnect, and message events.
+        Callback triggered upon connecting to the MQTT broker.
         """
-
-        def on_connect(client, userdata, flags, rc):
-            """
-            Callback triggered upon connecting to the MQTT broker.
-            """
-            if rc == 0:
-                print("Connected to MQTT Broker!")
-                client.subscribe(topic)  # Subscribe to the specified topic
-            else:
-                print("Failed to connect, return code %d\n", rc)
+        if rc == 0:
+            print("Connected to MQTT Broker!")
+            client.subscribe(topic)  # Subscribe to the specified topic once connected/reconnected
+        else:
+            print("Failed to connect, return code %d\n", rc)
         
         def on_disconnect(client, userdata, rc):
             """
@@ -212,6 +184,7 @@ As described on the scenario, first action on the application is establishing a 
 
             print("Disconnected with result code: %s", rc)
             reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
+            # Reconnect loop with exponential backoff
             while reconnect_count < MAX_RECONNECT_COUNT:
                 print("Reconnecting in {} seconds...".format(reconnect_delay))
                 time.sleep(reconnect_delay)
@@ -241,21 +214,11 @@ As described on the scenario, first action on the application is establishing a 
         client.on_disconnect = on_disconnect
         client.on_message = on_message
         client.connect(broker, port)
-        return client  # Return the configured client instance
-
-    def run():
-        """
-        Main function to connect the MQTT client and start its loop.
-        """
-        client = connect_mqtt()
-        client.loop_forever()
-
-    if __name__ == '__main__':
-        run()
 \end{minted}
 
 The data collection script, again, starts by establishing a connection client with the MQTT broker. Once connection is established, the data collection process starts. To simulate a real-world scenario, to add variation between the multiple sensors and a randomization element, that also prolongs the use of the dataset before going over the same data, an elaborate process was devised. To ensure the randomized data have a real-world, logical flow, the next data point is selected from the range (previous - 2, previous + 3). This ensures that the metrics collected each time are only a few hours apart instead of completely random, which would result in completely abnormal differences on metrics that wouldn't be observed on metrics taken a few minutes or an hour apart. It also ensures that the data point slowly moves forward in time, as to not overly repeat the same data. The starting point for this process is randomized using another script, to ensure results between sensors don't overlap heavily. Since the data collection process is ephemeral, the data points needs to be stored. This could have been achieved in a number of ways, like passing it back and forth between the main subscription script or using an environmental variable, but storing to a file was preferred as it could also be utilized if a recovery scenario was to be covered. Once the end of the database is reached, a new starting point is, again, randomly selected.
 
+Function to generate the sensor data by selecting a semi-random entry from the dataset, controlled via an environment variable to ensure logical flow of data:
 \begin{minted}[%
     framesep=2mm,
     baselinestretch=1.2,
@@ -263,39 +226,6 @@ The data collection script, again, starts by establishing a connection client wi
     fontsize=\footnotesize,
     breaklines
     ]{python}
-    import json
-    import random, os
-    import socket
-    import subprocess
-    from dotenv import load_dotenv
-    import paho.mqtt.client as mqtt_client
-
-    port = 1883  # Default port for MQTT communication
-    hostname = socket.gethostname()  # Retrieve the hostname of the current machine. Hostname is enforced by docker compose.
-    topic = "sensor-data/{}".format(hostname)  # Define the unique topic for publishing sensor data
-    client_id = 'publish-{}'.format(hostname)  # Unique client ID for MQTT connection
-    # broker = 'localhost'  # Uncomment this line for local broker testing
-    broker = 'host.docker.internal'  # Use this broker when running in a Docker environment
-
-    def connect_mqtt():
-        """
-        Connects to the MQTT broker and sets up the on_connect callback.
-        """
-
-        def on_connect(client, userdata, flags, rc):
-            """
-            Callback triggered upon connecting to the MQTT broker.
-            """
-            if rc == 0:
-                print("Connected to MQTT Broker!")
-            else: 
-                print("Failed to connect, return code %d\n", rc)
-
-        client = mqtt_client.Client(client_id)
-        client.on_connect = on_connect 
-        client.connect(broker, port)  
-        return client  
-
     def data_gen():
         """
         Generates sensor data by selecting a random entry from a dataset.
@@ -320,27 +250,9 @@ The data collection script, again, starts by establishing a connection client wi
 
             randata = json_data[str(randomizer)]  # Fetch the random data entry
             return randata  # Return the selected data
-
-    def publish(client, data):
-        """
-        Publishes a message to the MQTT topic.
-        """
-        msg = str(data)  # Convert the data to a string
-        result = client.publish(topic, msg)  # Publish the message to the topic
-        status = result[0]  # Check the result status
-        if status == 0:
-            print("Sent `{}` to topic `{}`".format(msg, topic))
-        else:
-            print("Failed to send message to topic {}".format(topic))        
-
-    if __name__ == '__main__':
-        client = connect_mqtt()  # Establish the MQTT connection
-        client.loop_start()  # Start the MQTT client loop in a separate thread
-        randata = data_gen()  # Generate random sensor data
-        publish(client, randata)  # Publish the generated data to the topic
-        client.loop_stop()  # Stop the MQTT client loop
 \end{minted}
 
+Function to generate a random starting point for the data selection process and store it in an .env file:
 \begin{minted}[%
     framesep=2mm,
     baselinestretch=1.2,
@@ -348,8 +260,6 @@ The data collection script, again, starts by establishing a connection client wi
     fontsize=\footnotesize,
     breaklines
     ]{python}
-    import json, random
-
     def set_startpoint():
         """
         Sets a STARTPOINT value based on the dataset's size and writes it to an .env file.
@@ -364,15 +274,13 @@ The data collection script, again, starts by establishing a connection client wi
 
             with open(".env", "w") as f:
                 f.write("STARTPOINT={}".format(startpoint)) # Write the STARTPOINT to the .env file
-
-    if __name__ == '__main__':
-        set_startpoint()
 \end{minted}
 
 Only libraries required, are "paho-mqtt" and "python-dotenv".
 
 \subsection{Containerization}
 IoT sensors usually are embedded on microcontrollers with limited hardware resources. While minimal, optimized subsets of Python do exist, building the Python scripts and using the binaries directly, makes more sense. To stick with the minimal, lightweight enviroment expected in an IoT microcontroller, a minimal linux docker image as base is a good fit. The \href{https://hub.docker.com/_/alpine/}{Alpine docker image} was selected, as it is the industry standard for minimal, striped down Linux images, and current latest ones are only around 5MB uncompressed. To build the Python scripts, PyInstaller was used, but because Alpine utilizes \href{https://musl.libc.org/}{Musl C library}, instead of the \href{https://www.gnu.org/software/libc/}{GNU C library}, a third party, PyInstaller-ready, Alpine-based Python image was used, that can be found \href{https://github.com/six8/pyinstaller-alpine}{here}. Using this image also removes the requirement of installing PyInstaller, a great example of how docker removes environmental dependencies. The following command was used:
+
 \begin{minted}[%
     framesep=2mm,
     baselinestretch=1.2,
@@ -382,24 +290,9 @@ IoT sensors usually are embedded on microcontrollers with limited hardware resou
     ]{bash}
     $ docker run --rm -v "${PWD}:/src" anastzampetis/pyinstaller-alpine --noconfirm --onefile --log-level DEBUG --clean <script_name>.py
 \end{minted}
-Once the binaries were built, a simple Dockerfile was used to copy the binaries and the json formated dataset into the base Alpine image and set the binaries to be executed when running the container.
-\begin{minted}[%
-    framesep=2mm,
-    baselinestretch=1.2,
-    bgcolor=LightGray,
-    fontsize=\footnotesize,
-    breaklines
-    ]{dockerfile}
-    FROM alpine
 
-    WORKDIR /app
-    ADD dist/sensor_data .
-    ADD dist/sensor_sub .
-    ADD dist/set_startpoint .
-    ADD dataset.json .
+Once the binaries were built, a simple Dockerfile was used to copy the binaries and the json formated dataset into the base Alpine image and set the binaries to be executed when running the container. Base image is Alpine Linux, since it is minimal and lightweight, as expected in an IoT microcontroller.
 
-    CMD ./set_startpoint && ./sensor_sub
-\end{minted}  
 Finally to build the image, below command was executed:
 \begin{minted}[%
     framesep=2mm,
@@ -443,6 +336,7 @@ Once these messages are received, using the "prometheus\_client" Python library 
 
 Usually Prometheus exporters collect data periodically, but continiously expose last collected metrics on an HTTP endpoint. In this case, thought, to make it easier to change the rate of data collection, by changing the scraping rate of Prometheus, a different design was implemented. The controller, utilizing the "fastapi" library and "gunicorn" exposes an API endpoint. When Prometheus scrapes this endpoint, the data collection process is triggered by the controller, and after a small time delay the controller respondes with the metrics. Implementation is split between a main script and two modules.
 
+API endpoint for data collection and metrics exposure on the main script:
 \begin{minted}[%
     framesep=2mm,
     baselinestretch=1.2,
@@ -450,14 +344,6 @@ Usually Prometheus exporters collect data periodically, but continiously expose 
     fontsize=\footnotesize,
     breaklines
     ]{python}
-    import time
-    from fastapi import FastAPI, Response
-    from prometheus_client import generate_latest
-    from exporter_func import *
-
-    app = FastAPI(debug=False)
-
-    # Define an endpoint to serve metrics
     @app.get("/metrics")
     def get_metrics_app():
         start_time = time.time()
@@ -478,17 +364,9 @@ Usually Prometheus exporters collect data periodically, but continiously expose 
 
         # Return the metrics data as a plain text HTTP response
         return Response(content=data, media_type="text/plain")
-
-    # Define a root endpoint with a simple message
-    @app.get("/")
-    async def root():
-        return "Go to /metrics for gitlab metrics"
-
-    # Note for running the application locally
-    # Use the command:
-    # gunicorn -b localhost:8000 exporter:app -k uvicorn.workers.UvicornWorker
 \end{minted}
 
+Functions that collect the data and transform it to Prometheus format:
 \begin{minted}[%
     framesep=2mm,
     baselinestretch=1.2,
@@ -496,90 +374,6 @@ Usually Prometheus exporters collect data periodically, but continiously expose 
     fontsize=\footnotesize,
     breaklines
     ]{python}
-    import paho.mqtt.client as mqtt_client
-    import json, time
-    from exporter_var import *
-
-    # Function to establish a connection to the MQTT broker and subscribe to a topic
-    def connect_sub_mqtt():
-
-        # Callback for successful connection to the MQTT broker
-        def on_connect(client, userdata, flags, rc):
-            if rc == 0:
-                print("Connected to MQTT Broker!")
-                client.subscribe(sub_topic) # Subscribe to the specified topic
-            else:
-                print("Failed to connect, return code %d\n", rc)
-        
-        # Callback for handling disconnection from the MQTT broker
-        def on_disconnect(client, userdata, rc):
-
-            FIRST_RECONNECT_DELAY = 1
-            RECONNECT_RATE = 2
-            MAX_RECONNECT_COUNT = 12
-            MAX_RECONNECT_DELAY = 60
-
-            print("Disconnected with result code: %s", rc)
-            reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
-            while reconnect_count < MAX_RECONNECT_COUNT:
-                print("Reconnecting in {} seconds...".format(reconnect_delay))
-                time.sleep(reconnect_delay)
-
-                try:
-                    client.reconnect()
-                    print("Reconnected successfully!")
-                    return
-                except Exception as err:
-                    print("{}. Reconnect failed. Retrying...".format(err))
-
-                reconnect_delay *= RECONNECT_RATE # Increase delay exponentially
-                reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
-                reconnect_count += 1
-            print("Reconnect failed after {} attempts. Exiting...".format(reconnect_count))
-
-        # Callback for receiving messages from the MQTT broker
-        def on_message(client, userdata, msg):
-
-            print("Received data from `{}` topic".format(msg.topic))
-            promethify_data(msg)  # Process the received message for Prometheus metrics
-
-        # Initialize the MQTT client and assign the callbacks
-        client = mqtt_client.Client(sub_client_id)
-        client.on_connect = on_connect
-        client.on_disconnect = on_disconnect
-        client.on_message = on_message
-        client.connect(broker, sub_port)
-        return client
-
-    # Function to continuously run the MQTT subscriber
-    def sub_client_run():
-        sub_client = connect_sub_mqtt()
-        sub_client.loop_forever()
-
-    # Function to publish a request message to collect data
-    def request_data(client):
-        msg = 'Time to collect data.'
-        result = client.publish(pub_topic, msg)
-        status = result[0]
-        if status == 0:
-            print("Sent `{}` to topic `{}`".format(msg, pub_topic))
-        else:
-            print("Failed to send message to topic {}".format(pub_topic))
-
-    # Function to connect to the MQTT broker as a publisher
-    def connect_pub_mqtt():
-
-        def on_connect(client, userdata, flags, rc):
-            if rc == 0:
-                print("Connected to MQTT Broker!")
-            else:
-                print("Failed to connect, return code %d\n", rc)
-
-        client = mqtt_client.Client(pub_client_id)
-        client.on_connect = on_connect
-        client.connect(broker, pub_port)
-        return client
-
     # Function to gather data by publishing a request message
     def gather_data():
         pub_client = connect_pub_mqtt()
@@ -606,18 +400,10 @@ Usually Prometheus exporters collect data periodically, but continiously expose 
         assign_data(air_quality_co_gt_gauge, "CO(GT)", sensor, jsondata)
         assign_data(air_quality_pt08s1_co_gauge, "PT08.S1(CO)", sensor, jsondata)
         assign_data(air_quality_nmhc_gt_gauge, "NMHC(GT)", sensor, jsondata)
-        assign_data(air_quality_c6h6_gt_gauge, "C6H6(GT)", sensor, jsondata)
-        assign_data(air_quality_pt08s2_nmhc_gauge, "PT08.S2(NMHC)", sensor, jsondata)
-        assign_data(air_quality_nox_gt_gauge, "NOx(GT)", sensor, jsondata)
-        assign_data(air_quality_pt08s3_nox_gauge, "PT08.S3(NOx)", sensor, jsondata)
-        assign_data(air_quality_no2_gt_gauge, "NO2(GT)", sensor, jsondata)
-        assign_data(air_quality_pt08s4_no2_gauge, "PT08.S4(NO2)", sensor, jsondata)
-        assign_data(air_quality_pt08s5_o3_gauge, "PT08.S5(O3)", sensor, jsondata)
-        assign_data(air_quality_t_gauge, "T", sensor, jsondata)
-        assign_data(air_quality_rh_gauge, "RH", sensor, jsondata)
-        assign_data(air_quality_ah_gauge, "AH", sensor, jsondata)
+        # ... (similar assignments for other metrics)
 \end{minted}
 
+Example definitions of the Prometheus metrics. Each metric is defined as a Gauge with a description and a label for 'sensor':
 \begin{minted}[%
     framesep=2mm,
     baselinestretch=1.2,
@@ -625,46 +411,9 @@ Usually Prometheus exporters collect data periodically, but continiously expose 
     fontsize=\footnotesize,
     breaklines
     ]{python}
-    from prometheus_client import Gauge
-
-    sub_port = 1883 # Port for the subscriber
-    pub_port = 1883 # Port for the publisher
-    sub_topic = "sensor-data/#" # Subscription topic for sensor data (wildcard for all subtopics)
-    pub_topic = "collect-data" # Topic to publish data collection requests
-    sub_client_id = 'subscribe-exporter' # Client ID for the MQTT subscriber
-    pub_client_id = 'publish-exporter' # Client ID for the MQTT publisher
-    #broker = 'localhost' # uncomment for local testing
-    broker = 'host.docker.internal' # Docker-specific hostname for connecting to the broker
-
-
-    # Prometheus metrics definitions
-    # Each metric is defined as a Prometheus Gauge with a description and a label for 'sensor'
-
     air_quality_co_gt_gauge = Gauge('air_quality_co_gt_gauge', 'True hourly averaged concentration CO in mg/m^3 (reference analyzer)', ['sensor'])
 
     air_quality_pt08s1_co_gauge = Gauge('air_quality_pt08s1_co_gauge', 'Tin oxide hourly averaged sensor response (nominally CO targeted)', ['sensor'])
-
-    air_quality_nmhc_gt_gauge = Gauge('air_quality_nmhc_gt_gauge', 'True hourly averaged overall Non Metanic HydroCarbons concentration in microg/m^3 (reference analyzer)', ['sensor'])
-
-    air_quality_c6h6_gt_gauge = Gauge('air_quality_c6h6_gt_gauge', 'True hourly averaged Benzene concentration in microg/m^3 (reference analyzer)', ['sensor'])
-
-    air_quality_pt08s2_nmhc_gauge = Gauge('air_quality_pt08s2_nmhc_gauge', 'Titania hourly averaged sensor response (nominally NMHC targeted)', ['sensor'])
-
-    air_quality_nox_gt_gauge = Gauge('air_quality_nox_gt_gauge', 'True hourly averaged NOx concentration in ppb (reference analyzer)', ['sensor'])
-
-    air_quality_pt08s3_nox_gauge = Gauge('air_quality_pt08s3_nox_gauge', 'Tungsten oxide hourly averaged sensor response (nominally NOx targeted)', ['sensor'])
-
-    air_quality_no2_gt_gauge = Gauge('air_quality_no2_gt_gauge', 'True hourly averaged NO2 concentration in microg/m^3 (reference analyzer)', ['sensor'])
-
-    air_quality_pt08s4_no2_gauge = Gauge('air_quality_pt08s4_no2_gauge', 'Tungsten oxide hourly averaged sensor response (nominally NO2 targeted)', ['sensor'])
-
-    air_quality_pt08s5_o3_gauge = Gauge('air_quality_pt08s5_o3_gauge', 'Indium oxide hourly averaged sensor response (nominally O3 targeted)', ['sensor'])
-
-    air_quality_t_gauge = Gauge('air_quality_t_gauge', 'Temperature in C', ['sensor'])
-
-    air_quality_rh_gauge = Gauge('air_quality_rh_gauge', 'Relative Humidity (%)', ['sensor'])
-
-    air_quality_ah_gauge = Gauge('air_quality_ah_gauge', 'Absolute Humidity', ['sensor'])
 \end{minted}
 
 Final output of the scripts on the endpoint that Prometheus scrapes is the Prometheus formated metrics and can be seen in an example below.
@@ -771,6 +520,7 @@ Final output of the scripts on the endpoint that Prometheus scrapes is the Prome
 
 To package the controller node application in a docker image, a simple Dockerfile was used. Using the official Python 3.11 image as base, all python modules are copied in the image along with the requirements file in order to install dependencies. After installing the dependencies and exposing one port for communication with the MQTT broker and one for the Prometheus metrics endpoint, the application is ready to run inside the container. An entrypoint was set to run the application using Gunicorn with Uvicorn workers.
 
+Snippet of the controller node Dockerfile showing the port exposures and entrypoint command:
 \begin{minted}[%
     framesep=2mm,
     baselinestretch=1.2,
@@ -778,23 +528,6 @@ To package the controller node application in a docker image, a simple Dockerfil
     fontsize=\footnotesize,
     breaklines
     ]{dockerfile}
-    FROM python:3.11.0
-
-    # Set the working directory inside the container
-    WORKDIR /srv/exporter
-
-    # Add the main application and supporting scripts to the working directory
-    ADD exporter.py /srv/exporter/
-    ADD exporter_func.py /srv/exporter/
-    ADD exporter_var.py /srv/exporter/
-    ADD requirements.txt /srv/exporter/
-
-    # Set execute permissions for all users on the project directory
-    RUN chmod -R a+x /srv/exporter
-
-    # Install the Python dependencies specified in requirements.txt
-    RUN python3 -m pip install -r requirements.txt
-
     # Expose the necessary ports for the Prometheus metrics endpoint and the MQTT protocol
     EXPOSE 8000
     EXPOSE 1883
@@ -828,6 +561,7 @@ Prometheus graphical user interface can be access on <hosts\_ip\_address>:9090
     \label{fig:prom_targets}
 \end{figure}
 
+Sensor scraping job configuration in the prometheus.yml file:
 \begin{minted}[%
     framesep=2mm,
     baselinestretch=1.2,
@@ -835,19 +569,7 @@ Prometheus graphical user interface can be access on <hosts\_ip\_address>:9090
     fontsize=\footnotesize,
     breaklines
     ]{yaml}
-    global:
-    scrape_interval:     15s
-    evaluation_interval: 15s
-
-    rule_files:
-    - prometheus_alerts_rules.yml
-
     scrape_configs:
-
-    - job_name: prometheus # Collecting data from Prometheus itself
-        static_configs:
-        - targets: ['127.0.0.1:9090']
-
     - job_name: sensors # Collecting metrics from the Controller Node
         scrape_interval: 60s
         scrape_timeout: 50s
@@ -950,6 +672,7 @@ Docker Compose is a tool for defining and running multi-container Docker applica
 
 On this implementation's Docker Compose YAML file, all components, the sensors, the MQTT broker, the controller node, Prometheus and Grafana are defined as individual services.Additionally, service settings, such as port mappings between containers and the host machine, mounted volumes, flags, environment variables and restart policies, were defined. Finally, a volume for Prometheus data was defined, to ensure data intergrity in case container was stopped and deleted.
 
+Docker Compose YAML file defining and configuring all services, including port mappings, volume mounts, restart policies and flags:
 \begin{minted}[%
     framesep=2mm,
     baselinestretch=1.2,
@@ -998,8 +721,6 @@ services:
         - "3000:3000"  # Expose Grafana GUI on port 3000
         restart: unless-stopped 
         environment:
-        - GF_SECURITY_ADMIN_USER=admin  # Admin username for Grafana
-        - GF_SECURITY_ADMIN_PASSWORD=grafana  # Admin password for Grafana
         - GF_PATHS_DATA=/var/lib/grafana  # Set data storage path
         volumes:
         - ./grafana:/var/lib/grafana  # Persist Grafana data
@@ -1011,29 +732,7 @@ services:
         hostname: "sensor-1"  # Set hostname for usage in the MQTT client
         restart: unless-stopped 
 
-    sensor-2:
-        image: "anastzampetis/sensor-emul"
-        container_name: "thesis-app.sensor-2"
-        hostname: "sensor-2"
-        restart: unless-stopped
-
-    sensor-3:
-        image: "anastzampetis/sensor-emul"
-        container_name: "thesis-app.sensor-3"
-        hostname: "sensor-3"
-        restart: unless-stopped
-
-    sensor-4:
-        image: "anastzampetis/sensor-emul"
-        container_name: "thesis-app.sensor-4"
-        hostname: "sensor-4"
-        restart: unless-stopped
-
-    sensor-5:
-        image: "anastzampetis/sensor-emul"
-        container_name: "thesis-app.sensor-5"
-        hostname: "sensor-5"
-        restart: unless-stopped
+    # Rest of the sensors...
 
 volumes:
     prometheus_data:  # Persistent volume for Prometheus data storage
