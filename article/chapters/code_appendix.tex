@@ -1,0 +1,669 @@
+\chapter*{Code Appendix}
+\addcontentsline{toc}{chapter}{Code Appendix}
+\label{ch:code_appendix}
+
+This appendix contains the source code listings referenced throughout the implementation chapter. The code is organized by component and includes detailed comments explaining key functionality.
+
+\usubsection{Dataset Processing Script}
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{python}
+    import csv
+    import sys
+    import json
+    import os
+
+    # Creates a new csv file named 'edited_csv' that doesn't contain empty rows, or rows with empty fields
+    def csv_cleanup(csvfilename):
+        with open(csvfilename, newline='') as csvfile:
+            with open('edited_csv', 'w', newline='') as edited_csvfile:
+                original = csv.reader(csvfile, delimiter=';')
+                edited = csv.writer(edited_csvfile, delimiter=';')
+                # fieldnames = next(original)
+                # fieldnames.insert(0, "#")
+                # edited.writerow(fieldnames)
+                # i = 1
+                for row in original:
+                    if row and any(row) and any(field.strip() for field in row):
+                        # row.insert(0, i)
+                        edited.writerow(row)
+                        # i += 1
+
+    # Creates a json file from the edited csv file with an incremental integer as keys
+    def csv_to_json(filename):
+        data_dict = {}
+        with open('edited_csv', newline='') as csvfile:
+            edited = csv.DictReader(csvfile, delimiter=';')
+            key = 1
+            for row in edited: 
+                data_dict[key] = row
+                key += 1
+        with open(filename+'.json', 'w') as jsonfile:
+            jsonfile.write(json.dumps(data_dict, indent = 4))
+
+
+
+    csvfilename = sys.argv[1]
+    filename = csvfilename.split('/')[-1].split('.')[0]
+
+    csv_cleanup(csvfilename)
+    csv_to_json(filename)
+    os.remove('edited_csv')
+\end{minted}
+
+\usubsection{Sensor Simulator main application}
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines,
+    label=lst:sensor simulator main application
+    ]{python}
+    import socket
+    import time
+    import subprocess
+    import paho.mqtt.client as mqtt_client
+
+    port = 1883  # Default port for MQTT communication
+    topic = "collect-data"  # Topic to subscribe to for data collection
+    hostname = socket.gethostname()  # Get the hostname of the machine running this script. Machine (container) hostname is enforced later-on by docker compose 
+    client_id = 'subscribe-{}'.format(hostname)  # Unique client ID for MQTT connection
+    # broker = 'localhost'  # Uncomment this line for local broker testing
+    broker = 'host.docker.internal'  # Use when running in a Docker environment
+
+    def connect_mqtt():
+        """
+        Connects to the MQTT broker and sets up event handlers for connect, disconnect, and message events.
+        """
+
+        def on_connect(client, userdata, flags, rc):
+            """
+            Callback triggered upon connecting to the MQTT broker.
+            """
+            if rc == 0:
+                print("Connected to MQTT Broker!")
+                client.subscribe(topic)  # Subscribe to the specified topic
+            else:
+                print("Failed to connect, return code %d\n", rc)
+        
+        def on_disconnect(client, userdata, rc):
+            """
+            Callback triggered when the MQTT client disconnects from the broker.
+            Implements an exponential backoff strategy for reconnection attempts.
+            """
+            FIRST_RECONNECT_DELAY = 1
+            RECONNECT_RATE = 2
+            MAX_RECONNECT_COUNT = 12
+            MAX_RECONNECT_DELAY = 60
+
+            print("Disconnected with result code: %s", rc)
+            reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
+            while reconnect_count < MAX_RECONNECT_COUNT:
+                print("Reconnecting in {} seconds...".format(reconnect_delay))
+                time.sleep(reconnect_delay)
+
+                try:
+                    client.reconnect()
+                    print("Reconnected successfully!")
+                    return
+                except Exception as err:
+                    print("{}. Reconnect failed. Retrying...".format(err))
+
+                reconnect_delay *= RECONNECT_RATE
+                reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
+                reconnect_count += 1
+            print("Reconnect failed after {} attempts. Exiting...".format(reconnect_count))
+
+        def on_message(client, userdata, msg):
+            """
+            Callback triggered when a message is received on the subscribed topic.
+            """
+            print("Received `{}` from `{}` topic".format(msg.payload.decode(), msg.topic))
+            subprocess.run(["./sensor_data"])  # Execute the sensor_data script upon message receipt
+
+        # Create an MQTT client instance, assign the callback functions and connect
+        client = mqtt_client.Client(client_id)
+        client.on_connect = on_connect
+        client.on_disconnect = on_disconnect
+        client.on_message = on_message
+        client.connect(broker, port)
+        return client  # Return the configured client instance
+
+    def run():
+        """
+        Main function to connect the MQTT client and start its loop.
+        """
+        client = connect_mqtt()
+        client.loop_forever()
+
+    if __name__ == '__main__':
+        run()
+\end{minted}
+
+\usubsection{Sensor Simulator Data Generation and Publishing script}
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    label=lst:sensor simulator data generation and publishing,
+    breaklines
+    ]{python}
+    import json
+    import random, os
+    import socket
+    import subprocess
+    from dotenv import load_dotenv
+    import paho.mqtt.client as mqtt_client
+
+    port = 1883  # Default port for MQTT communication
+    hostname = socket.gethostname()  # Retrieve the hostname of the current machine. Hostname is enforced by docker compose.
+    topic = "sensor-data/{}".format(hostname)  # Define the unique topic for publishing sensor data
+    client_id = 'publish-{}'.format(hostname)  # Unique client ID for MQTT connection
+    # broker = 'localhost'  # Uncomment this line for local broker testing
+    broker = 'host.docker.internal'  # Use this broker when running in a Docker environment
+
+    def connect_mqtt():
+        """
+        Connects to the MQTT broker and sets up the on_connect callback.
+        """
+
+        def on_connect(client, userdata, flags, rc):
+            """
+            Callback triggered upon connecting to the MQTT broker.
+            """
+            if rc == 0:
+                print("Connected to MQTT Broker!")
+            else: 
+                print("Failed to connect, return code %d\n", rc)
+
+        client = mqtt_client.Client(client_id)
+        client.on_connect = on_connect 
+        client.connect(broker, port)  
+        return client  
+
+    def data_gen():
+        """
+        Generates sensor data by selecting a random entry from a dataset.
+        The selection point is controlled via an environment variable.
+        """
+        with open("dataset.json") as datafile:
+            json_data = json.load(datafile)  # Load the dataset from the JSON file
+        
+            load_dotenv()  # Load environment variables from the .env file
+            startpoint = int(os.getenv('STARTPOINT'))  # Get the STARTPOINT from the .env file
+            # Randomize the data selection around the startpoint. Slowly moves forward in time, while keeping results semi-random and ensuring a logical history.
+            randomizer = random.randint(startpoint - 2, startpoint + 3)
+            while randomizer not in range(1, len(json_data)):  # Ensure the randomizer is valid
+                subprocess.run(["./set_startpoint"])  # Run a script to reset the startpoint
+                load_dotenv()  # Reload environment variables
+                startpoint = int(os.getenv('STARTPOINT'))
+                randomizer = random.randint(startpoint - 10, startpoint + 10)
+
+            # Update the STARTPOINT in the .env file
+            with open(".env", "w") as f:
+                f.write("STARTPOINT={}".format(randomizer))
+
+            randata = json_data[str(randomizer)]  # Fetch the random data entry
+            return randata  # Return the selected data
+
+    def publish(client, data):
+        """
+        Publishes a message to the MQTT topic.
+        """
+        msg = str(data)  # Convert the data to a string
+        result = client.publish(topic, msg)  # Publish the message to the topic
+        status = result[0]  # Check the result status
+        if status == 0:
+            print("Sent `{}` to topic `{}`".format(msg, topic))
+        else:
+            print("Failed to send message to topic {}".format(topic))        
+
+    if __name__ == '__main__':
+        client = connect_mqtt()  # Establish the MQTT connection
+        client.loop_start()  # Start the MQTT client loop in a separate thread
+        randata = data_gen()  # Generate random sensor data
+        publish(client, randata)  # Publish the generated data to the topic
+        client.loop_stop()  # Stop the MQTT client loop
+\end{minted}
+
+\usubsection{Startpoint Setter Script}
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{python}
+    import json, random
+
+    def set_startpoint():
+        """
+        Sets a STARTPOINT value based on the dataset's size and writes it to an .env file.
+        """
+        with open("dataset.json") as datafile:
+            json_data = json.load(datafile) # Load the dataset from a JSON file
+            
+            endpoint = round(len(json_data)/10) # Determine the upper limit for the STARTPOINT range
+            startpoint = str(random.randint(1, endpoint))
+
+            print("Setting STARTPOINT as {}".format(startpoint))
+
+            with open(".env", "w") as f:
+                f.write("STARTPOINT={}".format(startpoint)) # Write the STARTPOINT to the .env file
+
+    if __name__ == '__main__':
+        set_startpoint()
+\end{minted}
+
+\usubsection{Sensor Simulator Dockerfile}
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{python}
+    import json, random
+
+    def set_startpoint():
+        """
+        Sets a STARTPOINT value based on the dataset's size and writes it to an .env file.
+        """
+        with open("dataset.json") as datafile:
+            json_data = json.load(datafile) # Load the dataset from a JSON file
+            
+            endpoint = round(len(json_data)/10) # Determine the upper limit for the STARTPOINT range
+            startpoint = str(random.randint(1, endpoint))
+
+            print("Setting STARTPOINT as {}".format(startpoint))
+
+            with open(".env", "w") as f:
+                f.write("STARTPOINT={}".format(startpoint)) # Write the STARTPOINT to the .env file
+
+    if __name__ == '__main__':
+        set_startpoint()
+\end{minted}
+
+\usubsection{Controller Node main application}
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{python}
+    import time
+    from fastapi import FastAPI, Response
+    from prometheus_client import generate_latest
+    from exporter_func import *
+
+    app = FastAPI(debug=False)
+
+    # Define an endpoint to serve metrics
+    @app.get("/metrics")
+    def get_metrics_app():
+        start_time = time.time()
+        
+        # Connect to MQTT and start collecting data
+        sub_client = connect_sub_mqtt()
+        sub_client.loop_start()
+        gather_data()
+        time.sleep(1) # Allow time for data collection, in case sensors take time to respond
+        sub_client.loop_stop()
+
+        # Generate metrics data in Prometheus format
+        data = generate_latest()
+
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print("Execution time:",execution_time)
+
+        # Return the metrics data as a plain text HTTP response
+        return Response(content=data, media_type="text/plain")
+
+    # Define a root endpoint with a simple message
+    @app.get("/")
+    async def root():
+        return "Go to /metrics for gitlab metrics"
+
+    # Note for running the application locally
+    # Use the command:
+    # gunicorn -b localhost:8000 exporter:app -k uvicorn.workers.UvicornWorker
+\end{minted}
+
+\usubsection{Controller Node Data collection and Exporter Functions}
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{python}
+    import paho.mqtt.client as mqtt_client
+    import json, time
+    from exporter_var import *
+
+    # Function to establish a connection to the MQTT broker and subscribe to a topic
+    def connect_sub_mqtt():
+
+        # Callback for successful connection to the MQTT broker
+        def on_connect(client, userdata, flags, rc):
+            if rc == 0:
+                print("Connected to MQTT Broker!")
+                client.subscribe(sub_topic) # Subscribe to the specified topic
+            else:
+                print("Failed to connect, return code %d\n", rc)
+        
+        # Callback for handling disconnection from the MQTT broker
+        def on_disconnect(client, userdata, rc):
+
+            FIRST_RECONNECT_DELAY = 1
+            RECONNECT_RATE = 2
+            MAX_RECONNECT_COUNT = 12
+            MAX_RECONNECT_DELAY = 60
+
+            print("Disconnected with result code: %s", rc)
+            reconnect_count, reconnect_delay = 0, FIRST_RECONNECT_DELAY
+            while reconnect_count < MAX_RECONNECT_COUNT:
+                print("Reconnecting in {} seconds...".format(reconnect_delay))
+                time.sleep(reconnect_delay)
+
+                try:
+                    client.reconnect()
+                    print("Reconnected successfully!")
+                    return
+                except Exception as err:
+                    print("{}. Reconnect failed. Retrying...".format(err))
+
+                reconnect_delay *= RECONNECT_RATE # Increase delay exponentially
+                reconnect_delay = min(reconnect_delay, MAX_RECONNECT_DELAY)
+                reconnect_count += 1
+            print("Reconnect failed after {} attempts. Exiting...".format(reconnect_count))
+
+        # Callback for receiving messages from the MQTT broker
+        def on_message(client, userdata, msg):
+
+            print("Received data from `{}` topic".format(msg.topic))
+            promethify_data(msg)  # Process the received message for Prometheus metrics
+
+        # Initialize the MQTT client and assign the callbacks
+        client = mqtt_client.Client(sub_client_id)
+        client.on_connect = on_connect
+        client.on_disconnect = on_disconnect
+        client.on_message = on_message
+        client.connect(broker, sub_port)
+        return client
+
+    # Function to continuously run the MQTT subscriber
+    def sub_client_run():
+        sub_client = connect_sub_mqtt()
+        sub_client.loop_forever()
+
+    # Function to publish a request message to collect data
+    def request_data(client):
+        msg = 'Time to collect data.'
+        result = client.publish(pub_topic, msg)
+        status = result[0]
+        if status == 0:
+            print("Sent `{}` to topic `{}`".format(msg, pub_topic))
+        else:
+            print("Failed to send message to topic {}".format(pub_topic))
+
+    # Function to connect to the MQTT broker as a publisher
+    def connect_pub_mqtt():
+
+        def on_connect(client, userdata, flags, rc):
+            if rc == 0:
+                print("Connected to MQTT Broker!")
+            else:
+                print("Failed to connect, return code %d\n", rc)
+
+        client = mqtt_client.Client(pub_client_id)
+        client.on_connect = on_connect
+        client.connect(broker, pub_port)
+        return client
+
+    # Function to gather data by publishing a request message
+    def gather_data():
+        pub_client = connect_pub_mqtt()
+        pub_client.loop_start()
+        request_data(pub_client)
+        pub_client.loop_stop()
+
+    # Function to assign received data to Prometheus metrics
+    def assign_data(prom_var, data_name, sensor, jsondata):
+
+        value =  float(jsondata[data_name].replace(',', '.')) # Parse the value
+        if  value != -200:  # Exclude no readings
+            prom_var.labels(sensor).set(value) # Set the metric value with sensor label  
+
+    # Function to process received MQTT messages and update Prometheus metrics
+    def promethify_data(msg):
+
+        sensor = msg.topic.split('/')[1] # Extract sensor name from topic
+        # Decode and parse the JSON payload
+        jsondata_string = msg.payload.decode().replace("'", '"') 
+        jsondata = json.loads(jsondata_string)
+
+        # Assign each metric to the corresponding Prometheus variable
+        assign_data(air_quality_co_gt_gauge, "CO(GT)", sensor, jsondata)
+        assign_data(air_quality_pt08s1_co_gauge, "PT08.S1(CO)", sensor, jsondata)
+        assign_data(air_quality_nmhc_gt_gauge, "NMHC(GT)", sensor, jsondata)
+        assign_data(air_quality_c6h6_gt_gauge, "C6H6(GT)", sensor, jsondata)
+        assign_data(air_quality_pt08s2_nmhc_gauge, "PT08.S2(NMHC)", sensor, jsondata)
+        assign_data(air_quality_nox_gt_gauge, "NOx(GT)", sensor, jsondata)
+        assign_data(air_quality_pt08s3_nox_gauge, "PT08.S3(NOx)", sensor, jsondata)
+        assign_data(air_quality_no2_gt_gauge, "NO2(GT)", sensor, jsondata)
+        assign_data(air_quality_pt08s4_no2_gauge, "PT08.S4(NO2)", sensor, jsondata)
+        assign_data(air_quality_pt08s5_o3_gauge, "PT08.S5(O3)", sensor, jsondata)
+        assign_data(air_quality_t_gauge, "T", sensor, jsondata)
+        assign_data(air_quality_rh_gauge, "RH", sensor, jsondata)
+        assign_data(air_quality_ah_gauge, "AH", sensor, jsondata)
+\end{minted}
+
+\usubsection{Controller Node Prometheus Metrics Variables}
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{python}
+    from prometheus_client import Gauge
+
+    sub_port = 1883 # Port for the subscriber
+    pub_port = 1883 # Port for the publisher
+    sub_topic = "sensor-data/#" # Subscription topic for sensor data (wildcard for all subtopics)
+    pub_topic = "collect-data" # Topic to publish data collection requests
+    sub_client_id = 'subscribe-exporter' # Client ID for the MQTT subscriber
+    pub_client_id = 'publish-exporter' # Client ID for the MQTT publisher
+    #broker = 'localhost' # uncomment for local testing
+    broker = 'host.docker.internal' # Docker-specific hostname for connecting to the broker
+
+
+    # Prometheus metrics definitions
+    # Each metric is defined as a Prometheus Gauge with a description and a label for 'sensor'
+
+    air_quality_co_gt_gauge = Gauge('air_quality_co_gt_gauge', 'True hourly averaged concentration CO in mg/m^3 (reference analyzer)', ['sensor'])
+
+    air_quality_pt08s1_co_gauge = Gauge('air_quality_pt08s1_co_gauge', 'Tin oxide hourly averaged sensor response (nominally CO targeted)', ['sensor'])
+
+    air_quality_nmhc_gt_gauge = Gauge('air_quality_nmhc_gt_gauge', 'True hourly averaged overall Non Metanic HydroCarbons concentration in microg/m^3 (reference analyzer)', ['sensor'])
+
+    air_quality_c6h6_gt_gauge = Gauge('air_quality_c6h6_gt_gauge', 'True hourly averaged Benzene concentration in microg/m^3 (reference analyzer)', ['sensor'])
+
+    air_quality_pt08s2_nmhc_gauge = Gauge('air_quality_pt08s2_nmhc_gauge', 'Titania hourly averaged sensor response (nominally NMHC targeted)', ['sensor'])
+
+    air_quality_nox_gt_gauge = Gauge('air_quality_nox_gt_gauge', 'True hourly averaged NOx concentration in ppb (reference analyzer)', ['sensor'])
+
+    air_quality_pt08s3_nox_gauge = Gauge('air_quality_pt08s3_nox_gauge', 'Tungsten oxide hourly averaged sensor response (nominally NOx targeted)', ['sensor'])
+
+    air_quality_no2_gt_gauge = Gauge('air_quality_no2_gt_gauge', 'True hourly averaged NO2 concentration in microg/m^3 (reference analyzer)', ['sensor'])
+
+    air_quality_pt08s4_no2_gauge = Gauge('air_quality_pt08s4_no2_gauge', 'Tungsten oxide hourly averaged sensor response (nominally NO2 targeted)', ['sensor'])
+
+    air_quality_pt08s5_o3_gauge = Gauge('air_quality_pt08s5_o3_gauge', 'Indium oxide hourly averaged sensor response (nominally O3 targeted)', ['sensor'])
+
+    air_quality_t_gauge = Gauge('air_quality_t_gauge', 'Temperature in C', ['sensor'])
+
+    air_quality_rh_gauge = Gauge('air_quality_rh_gauge', 'Relative Humidity (%)', ['sensor'])
+
+    air_quality_ah_gauge = Gauge('air_quality_ah_gauge', 'Absolute Humidity', ['sensor'])
+\end{minted}
+
+\usubsection{Controller Node Dockerfile}
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{dockerfile}
+    FROM python:3.11.0
+
+    # Set the working directory inside the container
+    WORKDIR /srv/exporter
+
+    # Add the main application and supporting scripts to the working directory
+    ADD exporter.py /srv/exporter/
+    ADD exporter_func.py /srv/exporter/
+    ADD exporter_var.py /srv/exporter/
+    ADD requirements.txt /srv/exporter/
+
+    # Set execute permissions for all users on the project directory
+    RUN chmod -R a+x /srv/exporter
+
+    # Install the Python dependencies specified in requirements.txt
+    RUN python3 -m pip install -r requirements.txt
+
+    # Expose the necessary ports for the Prometheus metrics endpoint and the MQTT protocol
+    EXPOSE 8000
+    EXPOSE 1883
+
+    # Set the entrypoint command to run the application using Gunicorn with Uvicorn workers
+    ENTRYPOINT [ "gunicorn", "-b", "0.0.0.0:8000", "exporter:app", "-k", "uvicorn.workers.UvicornWorker" ]
+\end{minted}
+
+\usubsection{Prometheus Configuration File}
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{yaml}
+    global:
+    scrape_interval:     15s
+    evaluation_interval: 15s
+
+    rule_files:
+    - prometheus_alerts_rules.yml
+
+    scrape_configs:
+
+    - job_name: prometheus # Collecting data from Prometheus itself
+        static_configs:
+        - targets: ['127.0.0.1:9090']
+
+    - job_name: sensors # Collecting metrics from the Controller Node
+        scrape_interval: 60s
+        scrape_timeout: 50s
+        static_configs:
+        - targets: ['host.docker.internal:8000'] # Using host.docker.internal to direct containerized prometheus to host's 127.0.0.1 (localhost)
+\end{minted}
+
+\usubsection{Docker Compose File}
+\begin{minted}[%
+    framesep=2mm,
+    baselinestretch=1.2,
+    bgcolor=LightGray,
+    fontsize=\footnotesize,
+    breaklines
+    ]{yaml}
+services:
+    mqtt_broker:
+        image: "eclipse-mosquitto:2.0.18"  # Using the Eclipse Mosquitto MQTT broker
+        container_name: "thesis-app.mqtt_broker"
+        volumes: 
+        - ./mqtt_broker/mosquitto.conf:/mosquitto/config/mosquitto.conf  # Mount custom Mosquitto configuration
+        ports:
+        - "1883:1883"  # MQTT default port
+        - "9001:9001"  # WebSockets support for MQTT
+        restart: unless-stopped  # Automatically restart unless manually stopped
+
+    exporter:
+        image: "anastzampetis/iot-exporter"  # Custom IoT data exporter
+        container_name: "thesis-app.exporter"
+        ports:
+        - "8000:8000"  # Expose exporter service on port 8000
+        restart: unless-stopped  # Ensure the service restarts if it fails
+
+    prometheus:
+        image: "prom/prometheus:v2.46.0"  # Prometheus monitoring service
+        container_name: "thesis-app.prometheus"
+        volumes:
+        - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml  # Custom Prometheus config
+        - ./prometheus/prometheus_alerts_rules.yml:/etc/prometheus/prometheus_alerts_rules.yml  # Alert rules (Empty but needed as file)
+        - prometheus_data:/prometheus  # Persistent data storage
+        ports:
+        - "9090:9090"  # Expose Prometheus on port 9090
+        command:
+        - "--config.file=/etc/prometheus/prometheus.yml"  # Specify config file
+        - "--web.enable-lifecycle"  # Allow configuration reload via API
+        - "--storage.tsdb.path=/prometheus"  # Set data storage location
+        - "--storage.tsdb.retention.time=1y"  # Retention policy. Keep data for 1 year
+        restart: unless-stopped  
+
+    grafana:
+        image: "grafana/grafana:10.2.2"  # Grafana visualization service
+        container_name: "thesis-app.grafana"
+        ports:
+        - "3000:3000"  # Expose Grafana GUI on port 3000
+        restart: unless-stopped 
+        environment:
+        - GF_SECURITY_ADMIN_USER=admin  # Admin username for Grafana
+        - GF_SECURITY_ADMIN_PASSWORD=grafana  # Admin password for Grafana
+        - GF_PATHS_DATA=/var/lib/grafana  # Set data storage path
+        volumes:
+        - ./grafana:/var/lib/grafana  # Persist Grafana data
+
+    # Sensor services - each sensor must be initialized separately because Docker replicas do not support dynamic variables and container names are not accessible from inside the container. (needed for MQQT client)
+    sensor-1:
+        image: "anastzampetis/sensor-emul"  # Custom sensor emulator image
+        container_name: "thesis-app.sensor-1"
+        hostname: "sensor-1"  # Set hostname for usage in the MQTT client
+        restart: unless-stopped 
+
+    sensor-2:
+        image: "anastzampetis/sensor-emul"
+        container_name: "thesis-app.sensor-2"
+        hostname: "sensor-2"
+        restart: unless-stopped
+
+    sensor-3:
+        image: "anastzampetis/sensor-emul"
+        container_name: "thesis-app.sensor-3"
+        hostname: "sensor-3"
+        restart: unless-stopped
+
+    sensor-4:
+        image: "anastzampetis/sensor-emul"
+        container_name: "thesis-app.sensor-4"
+        hostname: "sensor-4"
+        restart: unless-stopped
+
+    sensor-5:
+        image: "anastzampetis/sensor-emul"
+        container_name: "thesis-app.sensor-5"
+        hostname: "sensor-5"
+        restart: unless-stopped
+
+volumes:
+    prometheus_data:  # Persistent volume for Prometheus data storage
+\end{minted}
