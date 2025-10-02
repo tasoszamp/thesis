@@ -1,5 +1,8 @@
 \chapter{Implementation} \label{ch:implementation}
 
+\usection{Introduction}
+This chapter describes the implementation of a sensor-driven microservice system, following the design principles and technologies outlined in previous chapters. It details the system components, their interactions and the engineering decisions taken to realize a sensor-driven microservice pipeline. The implementation focuses on: producing realistic synthetic sensor data from a re‑formatted air quality dataset, delivering that data through an MQTT messaging layer, transforming and exposing metrics for Prometheus, and visualizing results with Grafana. Emphasis is placed on containerized deployment (Docker, Docker Compose) to ensure reproducibility, scalability and ease of testing in any environment.
+
 \section{Design and Architecture}
 The design of the implementation leverages a microservices architecture to simulate real-world data collection and processing. The system was designed to emulate a sensor-driven environment, utilizing containerized services for data generation, communication, transformation, and visualization.
 
@@ -1045,3 +1048,7 @@ By using the above Docker Compose YAML and "docker compose up" command, all requ
     \caption{Deployed application using Docker Compose in Docker engine's UI}
     \label{fig:docker_compose}
 \end{figure}
+
+\usection{Summary}
+This chapter presented the implemented system that realizes the designed microservice architecture: a set of containerized sensor simulators that publish synthetic but realistic air‑quality readings to an MQTT broker, a controller service that ingests sensor messages, converts them to Prometheus metrics and exposes them via HTTP, Prometheus configured to scrape and retain those metrics and Grafana dashboards for visualization and monitoring. Docker Compose was used to orchestrate the services, enabling reproducible deployments and easy scaling of simulator instances.
+Key implementation choices included using a real-world dataset re‑formatted to JSON for simulation, lightweight Alpine‑based containers to keep images small, and standard open-source tooling (Mosquitto, Prometheus, Grafana) to simplify integration and evaluation.

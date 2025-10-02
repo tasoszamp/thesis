@@ -1,5 +1,12 @@
 \chapter{Technologies} \label{ch:technologies}
 
+\usection{Introduction} 
+Building upon the architectural concepts presented in the previous chapter, this chapter examines the key technologies that enable the implementation of modern microservice and IoT systems. It presents the tools and platforms selected to realize the design principles discussed earlier, particularly focusing on containerization, messaging, and monitoring solutions that support distributed, scalable architectures.
+
+The chapter explores how Docker and container technologies facilitate the microservice paradigm by providing isolated, portable deployment units. It examines MQTT as a lightweight protocol suited for IoT sensor communication, and presents monitoring tools (Prometheus, Grafana) essential for observing distributed systems. For each technology, we discuss its role in supporting the architectural goals, its key characteristics, and how it addresses specific design challenges identified in the previous chapter.
+
+Understanding these enabling technologies and their interplay is crucial for implementing the robust, maintainable and scalable system described in the next chapter. The chapter highlights how each tool contributes to realizing core design principles like service isolation, loose coupling, and system observability.
+
 \section{Docker}
 When discussing containers, Docker cannot be left out of the discussion. Docker is an open-source platform designed to automate the creation, deployment, scaling, and management of containerized applications. It is, by far, the most widely adopted tool for containerization. Docker allows the packaging of applications and their dependencies into lightweight and easily portable containers that can be deployed consistently across a wide range of environments. This portability ensures that applications behave identically, whether running on a developer's laptop, a staging environment, or a production server.
 
@@ -86,3 +93,8 @@ Despite its many strengths, MQTT does have a few limitations. The broker acts as
     \caption{MQTT protocol workflow}
     \label{fig:mqtt}
 \end{figure}
+
+\usection{Summary}
+This chapter explored the technological foundations that enable the microservice and IoT architecture outlined in the previous chapter. Docker provides the containerization backbone needed for service isolation and portability. MQTT offers the lightweight, publish-subscribe messaging essential for sensor communication. Prometheus and Grafana enable the monitoring and visualization capabilities required in distributed systems.
+
+These technologies were selected because they are widely adopted, well maintained, and directly aligned with our architectural goals. While the implementation described in the next chapter makes specific technology choices and trade-offs, understanding these underlying platforms illuminates both the possibilities and constraints they impose on real-world microservice deployments.
