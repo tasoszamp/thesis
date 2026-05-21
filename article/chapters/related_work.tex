@@ -1,0 +1,42 @@
+\chapter{Related Work} \label{ch:related_work}
+
+\usection{Introduction}
+This chapter surveys existing research and implementations that are relevant to the problem addressed by this thesis. The survey covers four interconnected areas: IoT-based environmental monitoring systems, IoT simulation and synthetic data generation, microservice architectures for data-intensive IoT applications, and distributed system observability using monitoring and visualization stacks.
+
+\section{IoT-Based Environmental Monitoring}
+
+The deployment of low-cost sensor networks for urban environmental monitoring has received substantial attention in literature. Early work by De Vito et al.\cite{devito2008} demonstrated that arrays of metal oxide chemical sensors could be deployed in the field to continuously estimate the concentration of urban air pollutants including benzene, CO, and NOx. Their dataset, collected over approximately one year by a device co-located with a certified reference analyzer in an Italian city, has since become a widely used benchmark for evaluating air quality sensing and data processing approaches. The present thesis uses this dataset directly to generate realistic synthetic sensor readings.
+
+Kumar et al.\cite{Kumar2015} provided a comprehensive overview of the challenges and opportunities associated with deploying low-cost sensor networks for urban air quality monitoring. Their work highlighted the importance of real-time data pipelines and visualization tools for transforming raw sensor readings into actionable information, underscoring the relevance of the system architecture proposed in this thesis.
+
+Beyond air quality, the broader IoT ecosystem has emerged as a key enabler for smart city applications. Zanella et al.\cite{zanella2014} examined how IoT infrastructures can support city-scale services ranging from structural monitoring to waste management, emphasizing the importance of scalable data acquisition and processing architectures. The need for flexible, maintainable software designs capable of handling varying sensor data at scale is a recurring theme across these works and directly motivates the microservices approach adopted in this thesis.
+
+\section{IoT Simulation and Synthetic Data}
+
+Physically deploying sensor networks during the development and testing of IoT data pipelines is often impractical due to cost, logistics, and the risk of exposing live systems to potentially unstable software. Several research efforts have therefore focused on IoT simulation frameworks and synthetic data generation as alternatives.
+
+Anderson et al.\cite{7004228} investigated the challenges of generating synthetic data representative of real IoT deployments, highlighting that realistic simulation requires capturing the statistical properties of genuine sensor readings rather than generating purely random values. This observation motivates the approach taken in this thesis, where a real-world air quality dataset is replayed by the sensor simulator rather than generating artificial measurements.
+
+The IOTSim platform proposed by Zeng et al.\cite{ZENG201793} provides a simulation environment for evaluating IoT applications in cloud computing settings, focusing on large-scale data generation and MapReduce-based processing. While IOTSim targets cloud-scale analytics workloads, the present thesis focuses on the end-to-end pipeline from sensor to dashboard in a containerized microservice environment.
+
+Kertesz et al.\cite{s10723-018-9468-9} proposed MobIoTSim, a mobile IoT device simulator that interfaces with real cloud IoT backends, demonstrating the feasibility of combining simulated sensor devices with production-grade data processing infrastructure. Similarly, Dayalan et al.\cite{10.1145/3538393.3544937} introduced Kaala, a hybrid simulator capable of integrating with commercial IoT cloud services such as Amazon IoT Core and Azure IoT Hub, bridging the gap between simulation and real-world deployments. The sensor simulator implemented in this thesis follows a related philosophy: it is packaged as a standard Docker container that participates in the same pipeline as a real sensor would, requiring no changes to the remaining system components.
+
+\section{Microservice Architectures for IoT Data Processing}
+
+The application of microservices architecture to IoT systems has grown substantially alongside the adoption of cloud-native design principles. Gos and Zabierowski\cite{monovsmicro} provided a direct comparison of monolithic and microservice architectures, concluding that microservices offer clear advantages in maintainability, independent deployability, and scalability, at the cost of increased initial design complexity. These trade-offs are examined in detail in Chapter~\ref{ch:design_concepts} of this thesis.
+
+Auer et al.\cite{AUER2021106600} conducted a survey-based study to derive an evidence-based framework for deciding when to migrate from a monolithic to a microservices architecture, identifying scalability requirements and the need for independent service deployment as key decision factors; both of which are present in the IoT sensor pipeline context. Tapia et al.\cite{app10175797} quantified the performance differences between the two approaches under stress test conditions, confirming that microservices incur some communication overhead but provide significant benefits in terms of scalability and resource efficiency.
+
+Related work was carried out by Chandrinos\cite{chandrinos_thesis}, who migrated an allergy symptoms monitoring system from a traditional deployment to a containerized microservice environment. This work demonstrated that containerized microservice deployments significantly simplify ongoing maintenance and enable independent updates of system components, findings consistent with the goals of the present thesis.
+
+\section{Distributed System Monitoring and Visualization}
+
+Effective observability is a prerequisite for operating distributed IoT systems reliably in production. The combination of Prometheus for metrics collection and Grafana for visualization has emerged as a de facto standard for monitoring microservice-based deployments.
+
+Jani\cite{Jani2024-mg} examined the implementation of unified Prometheus-and-Grafana monitoring stacks across distributed microservices, demonstrating that the pull-based scraping model of Prometheus pairs well with the dynamic nature of containerized environments where service instances may appear and disappear on demand. Pragathi et al.\cite{Pragathi2024-fa} further analyzed the effectiveness of this stack for infrastructure monitoring, highlighting its extensibility through custom exporters, a feature leveraged by the controller service in this thesis, which acts as a custom Prometheus exporter for MQTT-derived sensor data.
+
+Singh\cite{grafana} provided an overview of Grafana as a visualization platform, noting its wide adoption for operational dashboards and its ability to combine data from multiple sources into a unified view. These properties are directly relevant to the multi-metric air quality dashboards constructed in Chapter~\ref{ch:implementation}.
+
+\usection{Summary}
+
+The surveyed literature establishes a clear context for the contributions of this thesis. IoT-based environmental monitoring creates a concrete need for scalable, maintainable data pipelines. Simulation frameworks confirm that replaying real-world datasets is a sound approach for testing such pipelines. Microservice architectures provide the organizational principles for structuring the pipeline components, and the Prometheus-Grafana stack provides the observability layer required to operate them effectively. The following chapters describe how these elements are combined into a cohesive implementation.

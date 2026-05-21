@@ -1,0 +1,95 @@
+\chapter{Technology Selection} \label{ch:tool_selection}
+
+\usection{Introduction}
+Chapter~\ref{ch:technologies} presented the key technology categories relevant to the implementation of a microservice-based IoT data pipeline, along with representative tools in each category. This chapter justifies the specific selections made for this thesis by comparing chosen tools against relevant alternatives across five dimensions: messaging protocol, MQTT broker, containerization platform, metrics collection, and visualization. The goal is to demonstrate that each choice is the most appropriate option given the constraints and requirements defined in Chapter~\ref{ch:introduction}.
+
+\section{Messaging Protocol}
+
+The sensor-to-backend communication protocol must satisfy several constraints imposed by the IoT context: minimal bandwidth consumption, reliable delivery over potentially unstable connections, and support for a many-to-one communication pattern where multiple sensor nodes publish to a single processing endpoint.
+
+The principal candidates evaluated were:
+
+\begin{itemize}
+    \item \textbf{HTTP/REST:} A request-response protocol already universally supported. While straightforward to implement, HTTP carries significant per-message overhead (headers, connection setup) and its request-response model requires sensors to initiate communication, complicating scenarios where the backend must trigger data collection across all sensors simultaneously.
+    \item \textbf{AMQP (Advanced Message Queuing Protocol):} A full-featured message queuing protocol with strong delivery guarantees and transactional support. However, it is designed for enterprise messaging infrastructure and carries a much higher implementation and resource footprint than IoT scenarios typically warrant.
+    \item \textbf{CoAP (Constrained Application Protocol):} A UDP-based protocol designed specifically for constrained devices. CoAP is extremely lightweight but lacks the broker-mediated publish-subscribe topology that is central to the multi-sensor scenario implemented here.
+    \item \textbf{MQTT:} A lightweight TCP-based publish-subscribe protocol with built-in quality-of-service levels and support for persistent sessions. MQTT's broker model naturally decouples producers (sensors) from consumers (the controller service), and its small message headers make it well suited to the bandwidth-constrained links typical of IoT deployments\cite{mqtt}.
+\end{itemize}
+
+\textbf{Selection: MQTT.} MQTT provides the best match for the requirements of this system: it natively supports the publish-subscribe topology required by the multi-sensor scenario, offers configurable quality-of-service levels for reliable delivery, and imposes minimal overhead on sensor devices. The availability of mature client libraries for Python and other languages further simplifies implementation.
+
+\section{MQTT Broker}
+
+Given the selection of MQTT as the messaging protocol, a broker must be chosen. The main candidates considered were:
+
+\begin{itemize}
+    \item \textbf{EMQX:} A high-performance, enterprise-grade MQTT broker capable of handling millions of concurrent connections. EMQX is well-suited for production deployments at scale but its resource requirements and configuration complexity exceed what is needed for a development and demonstration environment.
+    \item \textbf{HiveMQ:} A robust commercial broker with a feature-rich management console. Like EMQX, it is oriented toward production deployments and its licensing model adds friction for open-source academic projects.
+    \item \textbf{VerneMQ:} An open-source, distributed MQTT broker designed for high availability. Its distributed architecture is valuable for production clusters but introduces unnecessary complexity for a single-host containerized deployment.
+    \item \textbf{Eclipse Mosquitto:} A lightweight, open-source MQTT broker maintained by the Eclipse Foundation. Mosquitto is designed for simplicity and minimal resource consumption, making it the reference implementation of the MQTT protocol for development environments.
+\end{itemize}
+
+\textbf{Selection: Eclipse Mosquitto.} For a containerized development environment with a bounded number of sensor simulator instances, Mosquitto provides exactly the capabilities required without the operational overhead of enterprise-oriented alternatives. Its small Docker image footprint aligns well with the microservices goal of lightweight, purpose-built containers.
+
+\section{Containerization Platform}
+
+Containerization is the foundation of the deployment strategy described in Chapter~\ref{ch:design_concepts}. The primary candidates were:
+
+\begin{itemize}
+    \item \textbf{Podman:} A daemon-less, rootless container runtime that is compatible with the Docker CLI and OCI image format. Podman is increasingly popular in security-sensitive environments, but its Compose tooling (Podman Compose) is less mature and the ecosystem of pre-built images and documentation is less extensive than Docker's.
+    \item \textbf{containerd:} The container runtime used internally by Kubernetes and Docker. While containerd can be used directly, it targets runtime-level use and does not provide the developer-friendly tooling (image building, Compose orchestration, registry integration) that Docker exposes.
+    \item \textbf{Docker:} The most widely adopted container platform, providing a complete toolchain for image building (Dockerfile), local orchestration (Docker Compose), and registry integration (Docker Hub)\cite{dockerDev}. Docker's ecosystem includes official images for every technology used in this thesis (Mosquitto, Prometheus, Grafana), reducing integration effort.
+\end{itemize}
+
+\textbf{Selection: Docker with Docker Compose.} Docker is the natural choice for a project whose primary goals include reproducibility and ease of deployment. Docker Compose allows the entire multi-service system to be defined declaratively in a single YAML file and started with a single command, directly satisfying the reproducibility requirement stated in Chapter~\ref{ch:introduction}. Docker Hub provides official, well-maintained images for all third-party services used in the system\cite{Pahl2015}.
+
+\section{Metrics Collection}
+
+The metrics storage layer must receive processed sensor readings from the controller service, persist them as time-series data, and make them queryable by the visualization layer. Candidates evaluated were:
+
+\begin{itemize}
+    \item \textbf{InfluxDB:} A purpose-built time-series database with a push-based ingest model. InfluxDB is performant and widely used, but its push model requires sensors or exporters to actively write to the database, coupling the data producers to the storage backend.
+    \item \textbf{Elasticsearch:} A distributed search and analytics engine capable of ingesting time-series data. Elasticsearch is better suited to log and event data than to the regular, structured numerical metrics produced by IoT sensors, and its resource requirements are substantially higher.
+    \item \textbf{Prometheus:} An open-source monitoring and alerting system that uses a pull-based scraping model, periodically fetching metrics from configured targets\cite{Jani2024-mg}. Prometheus stores data as time-series in a highly optimized internal format and exposes a powerful query language (PromQL) for filtering and aggregation.
+\end{itemize}
+
+\textbf{Selection: Prometheus.} The pull-based model of Prometheus is particularly well matched to the controller service pattern: the controller continuously transforms incoming MQTT data into an in-memory metrics state and exposes it at an HTTP endpoint, which Prometheus scrapes at a configurable interval. This design decouples the rate of sensor publication from the rate of metrics storage and avoids write contention. The native integration between Prometheus and Grafana further simplifies the visualization layer\cite{Pragathi2024-fa}.
+
+\section{Visualization}
+
+The visualization layer must render the time-series sensor data collected by Prometheus in an interactive, configurable dashboard accessible through a web browser. Candidates considered were:
+
+\begin{itemize}
+    \item \textbf{Kibana:} The visualization counterpart to Elasticsearch in the Elastic Stack. Kibana is powerful for log analytics and full-text search, but its native integration with Prometheus is indirect (requiring an adapter), and its interface is oriented toward event exploration rather than time-series dashboards.
+    \item \textbf{Custom web dashboard:} Building a bespoke dashboard using a JavaScript framework (e.g., React with Chart.js or D3.js) would offer maximum flexibility. However, the development effort required to replicate features such as variable templating, alerting, and multi-source queries would be substantial and distracts from the core objectives of the thesis.
+    \item \textbf{Grafana:} An open-source visualization platform with native, first-class support for Prometheus as a data source\cite{grafana}. Grafana provides a rich library of panel types (time-series charts, gauges, heatmaps, stat panels), supports dashboard variables for dynamic filtering, and includes a built-in alerting engine.
+\end{itemize}
+
+\textbf{Selection: Grafana.} Grafana is the standard visualization companion to Prometheus and the most appropriate choice given the existing selection of Prometheus as the metrics backend. Its native PromQL integration, dashboard templating, and official Docker image make it a minimal-effort addition to the Docker Compose deployment that delivers significant visualization capability out of the box\cite{promandgraf}.
+
+\usection{Summary}
+
+The table below summarizes the technology selections and the primary reason each was preferred over alternatives.
+
+\begin{table}[!h]
+\centering
+\begin{tabular}{|l|l|p{0.42\linewidth}|}
+    \hline
+    \textbf{Category} & \textbf{Selected Tool} & \textbf{Primary Reason} \\
+    \hline
+    Messaging protocol & MQTT & Lightweight pub/sub; designed for IoT \\
+    \hline
+    MQTT broker & Eclipse Mosquitto & Minimal footprint; ideal for containerized dev environments \\
+    \hline
+    Containerization & Docker + Compose & Mature toolchain; single-command reproducible deployment \\
+    \hline
+    Metrics storage & Prometheus & Pull-based scraping; native Grafana integration \\
+    \hline
+    Visualization & Grafana & First-class Prometheus support; rich dashboarding features \\
+    \hline
+\end{tabular}
+\caption{Technology Selections Summary}
+\label{tab:tool_selection}
+\end{table}
+
+Each selection was made to minimize integration complexity while maximizing alignment with the scalability and reproducibility requirements of the system. Together, these tools form a cohesive, well-documented, and widely adopted stack for containerized IoT data pipelines.

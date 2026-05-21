@@ -1,0 +1,50 @@
+\chapter{Introduction} \label{ch:introduction}
+
+\section{Context and Motivation}
+
+The rapid increase of Internet of Things (IoT) devices has fundamentally changed the way data is collected from the physical world. Sensors embedded in everyday objects and deployed in urban environments now generate continuous streams of measurements covering everything from temperature and humidity to the concentration of atmospheric pollutants. Air quality, in particular, has emerged as a critical concern in modern cities, where compounds such as carbon monoxide (CO), nitrogen oxides (NOx), benzene, and ozone pose measurable risks to public health and quality of life\cite{Kumar2015}.
+
+Continuous air quality monitoring requires networks of sensors capable of collecting measurements at regular intervals, transmitting those measurements reliably over potentially unreliable communication links, and delivering the collected data to a processing layer that can store, analyze, and visualize it in a meaningful way. The volume, rate, and variety of the data produced by such networks demand software architectures that are inherently scalable, fault-tolerant, and easy to maintain over time.
+
+At the same time, the rise of cloud-native software development and containerization has made it practical to decompose applications into small, independently deployable services; a paradigm known as microservices architecture\cite{microservicesdef}. When applied to IoT data pipelines, this approach allows each stage of the pipeline (data ingestion, processing, storage, and visualization) to be developed, tested, and scaled independently, greatly reducing the operational burden associated with traditional monolithic deployments.
+
+\section{Problem Statement}
+
+The core problem addressed by this thesis is: \textit{how can a data collection, processing, and visualization pipeline for distributed IoT sensor data be designed and implemented in a way that is scalable, maintainable, and easily deployable?}
+
+More specifically, the system must address the following requirements:
+
+\begin{itemize}
+    \item \textbf{Data collection:} Multiple sensor nodes must be able to transmit air quality readings simultaneously using a lightweight communication protocol suited to resource-constrained devices.
+    \item \textbf{Data filtering and transformation:} Raw sensor readings must be converted into structured, queryable metrics compatible with a time-series storage backend.
+    \item \textbf{Data storage:} Processed metrics must be persisted with configurable retention policies to support both real-time monitoring and retrospective analysis.
+    \item \textbf{Visualization:} The stored data must be accessible through interactive dashboards that allow operators to detect trends, identify anomalies, and make data-driven decisions.
+    \item \textbf{Reproducibility and testability:} The system must be deployable in any environment from a single configuration file, and must support a simulation mode in which real sensor behavior is emulated using synthetic data, eliminating the need for costly physical hardware during development and testing.
+\end{itemize}
+
+\section{Proposed Solution}
+
+To address these requirements, this thesis proposes and implements a microservices-based architecture for IoT air quality data collection and visualization. Each functional component of the pipeline is implemented as an independent, containerized service:
+
+\begin{itemize}
+    \item A \textbf{sensor simulator} service replays a real-world air quality dataset, publishing synthetic sensor readings at configurable intervals, thereby eliminating the need for physical hardware during development.
+    \item An \textbf{MQTT broker} provides lightweight, publish-subscribe message routing between the sensor nodes and the data processing layer.
+    \item A \textbf{controller} service subscribes to sensor data, transforms it into a Prometheus-compatible format, and exposes it through an HTTP endpoint.
+    \item \textbf{Prometheus} periodically scrapes the controller endpoint, storing the time-series metrics in a local database.
+    \item \textbf{Grafana} connects to Prometheus as a data source and renders the air quality data through interactive, customizable dashboards.
+\end{itemize}
+
+All services are packaged as Docker containers and orchestrated with Docker Compose, enabling the entire pipeline to be started, stopped, and reproduced with a single command across any environment. The air quality data used for simulation is drawn from a publicly available dataset recorded by a gas multi-sensor device deployed in an Italian city\cite{devito2008}, providing realistic sensor readings for CO, NOx, benzene, and other compounds.
+
+% \section{Thesis Organization}
+
+% The remainder of this thesis is structured as follows:
+
+% \begin{itemize}
+%     \item \textbf{Chapter~\ref{ch:related_work}} surveys existing work on IoT-based environmental monitoring, IoT simulation frameworks, and microservice-based data pipelines, situating this thesis within the broader literature.
+%     \item \textbf{Chapter~\ref{ch:design_concepts}} describes the architectural method followed by the thesis: the rationale for choosing a microservices architecture, the role of containerization, and the use of IoT device simulation.
+%     \item \textbf{Chapter~\ref{ch:technologies}} presents the software technologies available for implementing the system, covering containerization platforms, messaging protocols, and monitoring tools.
+%     \item \textbf{Chapter~\ref{ch:tool_selection}} justifies the specific tools selected for each component of the system, comparing them against relevant alternatives.
+%     \item \textbf{Chapter~\ref{ch:implementation}} provides a detailed description of the implementation, including the system architecture, the dataset used, and the behavior of each service.
+%     \item \textbf{Chapter~\ref{ch:conclusion}} draws conclusions from the work and outlines directions for future improvement.
+% \end{itemize}

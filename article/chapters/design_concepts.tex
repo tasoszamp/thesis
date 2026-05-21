@@ -1,16 +1,9 @@
-\chapter{Design concepts} \label{ch:design_concepts}
+\chapter{Design Concepts and Methodology} \label{ch:design_concepts}
 
 \usection{Introduction}
-The design of modern software systems plays a crucial role in determining their efficiency, maintainability and scalability but also their development lifecycle. The more complex and demanding an application is, the more important choosing the right architectural approach is. This chapters explores fundamental design concepts in software architecture, with a particular focus in comparing the Monolithic and the Microservice architectures.
+This chapter describes the architectural method adopted by this thesis to address the problem of scalable, maintainable IoT sensor data collection and visualization defined in Chapter~\ref{ch:introduction}. The central design decision is the use of a \textit{microservices architecture}, in which each functional stage of the data pipeline, specifically: sensor simulation, message brokering, data transformation, metrics storage, and visualization, is implemented as an independent, loosely coupled service.
 
-Monolithic architectures, traditionally the preferred approach, bundle all functions of an application into a single, unified system. While this method simplifies initial development and deployment, it often leads to challenges in flexibility and scalability as the application expands.
-On the other hand, the modern microservices architecture has gained popularity, due to it's enhanced modularity and scalability, thanks to decoupling each distinct functionality into separate services.
-
-Additionally, the chapter examines application containerization, a key technology that enables microservice-based designs, by providing lightweight and fast virtualization for efficient deployment, resource utilization and scalability.
-
-Lastly, the development of Internet of Things (IoT) applications is discussed, with a focus on device simulators and synthetic data for development and testing of production environments without the cost of setting up such systems.
-
-By understanding these foundational concepts, we can better appreciate the design choices made in building robust, adaptable, and scalable software systems.
+To justify and contextualize this choice, the chapter begins by contrasting microservices with the traditional monolithic approach. Understanding the limitations of monolithic architectures and particularly their resistance to independent scaling and the tight coupling that complicates maintenance is essential for appreciating why a microservices-based design is better suited to the dynamic, varying nature of IoT data pipelines. The chapter then examines containerization, which is the key enabling technology that makes microservice deployments practical: containers provide the isolation, portability, and fast startup times that allow each service to be deployed and scaled independently without conflicts. Finally, the use of IoT device simulators and synthetic data is discussed, motivating the decision to develop the sensor component as a standalone containerized service that can be replaced by real hardware without changing any other part of the system.
 
 \section{Monolithic Architecture}
  
