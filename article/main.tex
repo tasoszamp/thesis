@@ -7,7 +7,8 @@
 \newcommand{\doctitle}{Data Search \& Extraction with Microservices}
 \newcommand{\doctitlegr}{Αναζήτηση \& Εξόρυξη Δεδομένων με Microservices}
 % \newcommand{\docsubtitle}{Υπότιτλος εγγράφου}
-\newcommand{\division}{Electronics and Computers Department}
+\newcommand{\division}{Electronics and Computer}
+\newcommand{\divisiongr}{Τομέας Ηλεκτρονικής και Υπολογιστών}
 \newcommand{\lab}{NaN}
 \newcommand{\uni}{University of Patras}
 \newcommand{\unigr}{Πανεπιστήμιο Πατρών}
@@ -19,7 +20,8 @@
 %
 \newcommand{\studnum}{228322}
 \newcommand{\keywords}{Microservices; Data; Internet of Things; Containers}
-\newcommand{\monthyear}{April 2026}
+\newcommand{\monthyear}{May 2026}
+\newcommand{\monthyeargr}{Μάιος 2026}
 
 \newcommand{\supname}{Dr. Evangelos Dermatas}
 \newcommand{\suptitle}{Professor}
@@ -37,6 +39,14 @@
 \newcommand{\headofdivisiontitlegr}{Αναπληρωτής Καθηγητής}
 
 \author{\me}
+
+% PDF METADATA (override template defaults)
+\hypersetup{
+    pdftitle={\doctitle},
+    pdfauthor={\nomme},
+    pdfsubject={Diploma Thesis, Department of Electrical Engineering \& Computer Technology, University of Patras},
+    pdfkeywords={\keywords}
+}
 
 % GLOSSARY
 
@@ -57,6 +67,9 @@
 %*************************%
 
 \include{intro/titlepage}
+\clearemptydoublepage
+
+\include{intro/titlepage-gr}
 \clearemptydoublepage
 
 \include{intro/certification-en}
